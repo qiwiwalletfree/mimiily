@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Обичам те, МИМИ</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #030108;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+    }
+
+    /* Стартов екран с бутон */
+    #intro-screen {
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(circle at center, #1a0514 0%, #030108 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      transition: opacity 1s ease, visibility 1s ease;
+    }
+    #intro-screen.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+    .intro-sub {
+      color: rgba(255, 200, 225, 0.7);
+      font-size: 14px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 24px;
+      animation: fadeFloat 2.5s infinite ease-in-out;
+    }
+    #start-btn {
+      position: relative;
+      padding: 18px 42px;
+      font-size: 20px;
+      font-weight: 700;
+      color: #ffffff;
+      background: linear-gradient(135deg, #ff1e6e 0%, #ff5e9c 100%);
+      border: 1px solid rgba(255, 180, 210, 0.6);
+      border-radius: 50px;
+      cursor: pointer;
+      letter-spacing: 1px;
+      box-shadow: 0 0 25px rgba(255, 30, 110, 0.6), inset 0 0 12px rgba(255, 255, 255, 0.3);
+      animation: pulseStart 1.8s infinite ease-in-out;
+      transition: transform 0.2s ease;
+    }
+    #start-btn:active {
+      transform: scale(0.94);
+    }
+    @keyframes pulseStart {
+      0%, 100% { transform: scale(1); box-shadow: 0 0 25px rgba(255, 30, 110, 0.6); }
+      50% { transform: scale(1.07); box-shadow: 0 0 45px rgba(255, 45, 125, 0.95); }
+    }
+    @keyframes fadeFloat {
+      0%, 100% { opacity: 0.6; transform: translateY(0); }
+      50% { opacity: 1; transform: translateY(-4px); }
+    }
+
+    /* Интерфейс на галактиката */
+    #ui {
+      position: fixed;
+      top: 20px;
+      left: 0;
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      pointer-events: none;
+      z-index: 10;
+      opacity: 0;
+      transition: opacity 1.2s ease;
+    }
+    .hint {
+      color: rgba(255, 210, 230, 0.85);
+      font-size: 13px;
+      letter-spacing: 0.5px;
+      background: rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(8px);
+      padding: 8px 18px;
+      border-radius: 20px;
+      border: 1px solid rgba(255, 105, 180, 0.3);
+      transition: opacity 0.6s ease;
+    }
+    #music-btn {
+      position: fixed;
+      top: 20px;
+      right: 16px;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: rgba(255, 40, 110, 0.25);
+      border: 1px solid rgba(255, 105, 180, 0.6);
+      color: #fff;
+      font-size: 18px;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      z-index: 20;
+      backdrop-filter: blur(6px);
+      box-shadow: 0 0 15px rgba(255, 40, 110, 0.4);
+    }
+    #music-btn.playing {
+      animation: pulseBtn 1.5s infinite;
+    }
+    @keyframes pulseBtn {
+      0% { transform: scale(1); box-shadow: 0 0 10px rgba(255, 40, 110, 0.4); }
+      50% { transform: scale(1.1); box-shadow: 0 0 22px rgba(255, 40, 110, 0.8); }
+      100% { transform: scale(1); box-shadow: 0 0 10px rgba(255, 40, 110, 0.4); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Начален екран -->
+  <div id="intro-screen">
+    <div class="intro-sub">Имам изненада за теб</div>
+    <button id="start-btn">Натисни ме ❤️</button>
+  </div>
+
+  <button id="music-btn" title="Музика">🎵</button>
+  <div id="ui"><div class="hint" id="hint">Завърти с пръст • Приближи с два</div></div>
+  <audio id="bg-music" src="music.mp3" loop preload="auto"></audio>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+  <script>
+    (function() {
+      const phrases = [
+        "Обичам те", "Обичам те, Мими", "Много те обичам", "Обичам те безкрайно", "Ти си моето всичко",
+        "I love you", "Я тебя люблю", "Я тебе кохаю", "Я цябе кахаю", "Обичам те",
+        "Te amo", "Je t'aime", "Ti amo", "Ich liebe dich", "Eu te amo",
+        "Ik hou van jou", "Jag älskar dig", "Jeg elsker dig", "Jeg elsker deg", "Minä rakastan sinua",
+        "Kocham Cię", "Miluji tě", "Ľúbim ťa", "Szeretlek", "Te iubesc",
+        "Volim te", "Ljubim te", "Σ' αγαπώ", "Seni seviyorum", "أحبك",
+        "אני אוהב אותך", "愛してる", "사랑해", "我爱你", "我愛你",
+        "मैं तुमसे प्यार करता हूँ", "আমি তোমায় ভালোবাসি", "ਮੈਂ ਤੈਨੂੰ ਪਿਆਰ ਕਰਦਾ ਹਾਂ", "मी तुझ्यावर प्रेम करतो",
+        "நான் உன்னை காதலிக்கிறேன்", "నేను నిన్ను ప్రేమిస్తున్నాను", "ನಾನು ನಿನ್ನನ್ನು ಪ್ರೀತಿಸುತ್ತೇನೆ", "ഞാൻ നിന്നെ സ്നേഹിക്കുന്നു",
+        "මම ඔයාට ආදරෙයි", "म तिमीलाई माया गर्छु", "Aku cinta kamu", "Saya cintakan awak", "Mahal kita",
+        "Anh yêu em", "ฉันรักคุณ", "ខ្ញុំស្រឡាញ់អ្នក", "ຂ້ອຍຮັກເຈົ້າ", "ချစ်တယ်",
+        "Мен сені сүйемін", "Мен сени сүйөм", "Men seni sevaman", "Men seni söýýärin", "Ман туро дӯст медорам",
+        "Mən səni sevirəm", "მიყვარხარ", "Ես քեզ սիրում եմ", "دوستت دارم", "زه تا سره مینه لرم",
+        "Ez ji te hez dikim", "Би чамд хайртай", "Ma armastan sind", "Es tevi mīlu", "Aš tave myliu",
+        "Të dua", "Те сакам", "Inħobbok", "Ég elska tig", "Tá grá agam duit",
+        "Rwy'n dy garu di", "Tha gaol agam ort", "Ngiyakuthanda", "Ndiyakuthanda", "Ke a go rata",
+        "Ndikukonda", "Ndinokuda", "Nakupenda", "Waan ku jeclahay", "Ina son ku",
+        "Mo nifẹ rẹ", "A hụrụ m gị n'anya", "Mi amas vin", "Amo te", "Ti voglio bene",
+        "T'estimo", "Maite zaitut", "Eu te quero", "Aloha wau iā ʻoe", "Aroha ahau ki a koe",
+        "Ou te alofa ia te oe", "Ofa atu", "Kuv hlub koj", "Ndagukunda", "Обичам те завинаги"
+      ];
+
+      const introScreen = document.getElementById('intro-screen');
+      const startBtn = document.getElementById('start-btn');
+      const uiContainer = document.getElementById('ui');
+      const audio = document.getElementById('bg-music');
+      const musicBtn = document.getElementById('music-btn');
+      let isPlaying = false;
+      let hasMusicFile = true;
+
+      audio.addEventListener('error', () => {
+        hasMusicFile = false;
+        musicBtn.style.display = 'none';
+      });
+
+      // Натискане на стартовия бутон
+      startBtn.addEventListener('click', () => {
+        introScreen.classList.add('hidden');
+        uiContainer.style.opacity = '1';
+
+        if (hasMusicFile) {
+          musicBtn.style.display = 'flex';
+          audio.play().then(() => {
+            isPlaying = true;
+            musicBtn.classList.add('playing');
+          }).catch(() => {});
+        }
+      });
+
+      musicBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (isPlaying) {
+          audio.pause();
+          isPlaying = false;
+          musicBtn.classList.remove('playing');
+          musicBtn.textContent = '🔇';
+        } else {
+          audio.play().then(() => {
+            isPlaying = true;
+            musicBtn.classList.add('playing');
+            musicBtn.textContent = '🎵';
+          }).catch(() => {});
+        }
+      });
+
+      // Сцена, камера, рендерер
+      const scene = new THREE.Scene();
+      scene.fog = new THREE.FogExp2(0x030108, 0.008);
+
+      const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+      camera.position.set(0, 14, 38);
+
+      const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      document.body.appendChild(renderer.domElement);
+
+      const controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.05;
+      controls.minDistance = 8;
+      controls.maxDistance = 85;
+      controls.autoRotate = true;
+      controls.autoRotateSpeed = 0.7;
+
+      controls.addEventListener('start', () => {
+        document.getElementById('hint').style.opacity = '0';
+      });
+
+      const galaxyGroup = new THREE.Group();
+      scene.add(galaxyGroup);
+
+      // 1. 3D сърце от светещи частици
+      const heartParticleCount = 3400;
+      const heartGeo = new THREE.BufferGeometry();
+      const heartPositions = new Float32Array(heartParticleCount * 3);
+      const heartColors = new Float32Array(heartParticleCount * 3);
+
+      const cInner = new THREE.Color(0xff1464);
+      const cOuter = new THREE.Color(0xff99cc);
+
+      for (let i = 0; i < heartParticleCount; i++) {
+        const t = Math.random() * Math.PI * 2;
+        let x = 16 * Math.pow(Math.sin(t), 3);
+        let y = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t);
+
+        const r = Math.pow(Math.random(), 0.45);
+        const zSpread = (1 - r * 0.7) * 5.5 * (Math.random() * 2 - 1);
+
+        const scale = 0.25 * r;
+        heartPositions[i * 3] = x * scale + (Math.random() - 0.5) * 0.3;
+        heartPositions[i * 3 + 1] = (y * scale) + 1.2 + (Math.random() - 0.5) * 0.3;
+        heartPositions[i * 3 + 2] = zSpread * r;
+
+        const mixed = cInner.clone().lerp(cOuter, Math.random() * 0.8);
+        heartColors[i * 3] = mixed.r;
+        heartColors[i * 3 + 1] = mixed.g;
+        heartColors[i * 3 + 2] = mixed.b;
+      }
+
+      heartGeo.setAttribute('position', new THREE.BufferAttribute(heartPositions, 3));
+      heartGeo.setAttribute('color', new THREE.BufferAttribute(heartColors, 3));
+
+      const heartMat = new THREE.PointsMaterial({
+        size: 0.22,
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.85,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+      });
+
+      const heartMesh = new THREE.Points(heartGeo, heartMat);
+      galaxyGroup.add(heartMesh);
+
+      // 1.5. Име МИМИ в центъра на сърцето
+      function createCenterNameSprite(name) {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = 512;
+        canvas.height = 256;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.font = '800 88px "Segoe UI", Arial, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        ctx.shadowColor = '#ff0055';
+        ctx.shadowBlur = 24;
+        ctx.lineWidth = 6;
+        ctx.strokeStyle = 'rgba(80, 0, 30, 0.85)';
+        ctx.strokeText(name, canvas.width / 2, canvas.height / 2);
+
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(name, canvas.width / 2, canvas.height / 2);
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.minFilter = THREE.LinearFilter;
+
+        const material = new THREE.SpriteMaterial({
+          map: texture,
+          transparent: true,
+          depthTest: false,
+          depthWrite: false
+        });
+
+        const sprite = new THREE.Sprite(material);
+        sprite.scale.set(5.4, 2.7, 1);
+        sprite.position.set(0, 0.8, 0);
+        sprite.renderOrder = 10;
+        return sprite;
+      }
+
+      const nameSprite = createCenterNameSprite("МИМИ");
+      galaxyGroup.add(nameSprite);
+
+      // 2. Текстови спрайтове
+      function createTextSprite(text) {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = 512;
+        canvas.height = 128;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.font = '600 38px "Segoe UI", Arial, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        ctx.shadowColor = '#ff2a85';
+        ctx.shadowBlur = 16;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.minFilter = THREE.LinearFilter;
+
+        const material = new THREE.SpriteMaterial({
+          map: texture,
+          transparent: true,
+          opacity: 0.92,
+          depthWrite: false
+        });
+
+        const sprite = new THREE.Sprite(material);
+        sprite.scale.set(7.5, 1.875, 1);
+        return sprite;
+      }
+
+      const arms = 4;
+      phrases.forEach((phrase, idx) => {
+        const sprite = createTextSprite(phrase);
+        const arm = idx % arms;
+        const progress = idx / phrases.length;
+        const radius = 8.5 + progress * 24;
+        const angle = (arm * (Math.PI * 2 / arms)) + progress * Math.PI * 3.8;
+        const yOffset = (Math.sin(idx * 1.7) * 3.5) * (0.4 + progress * 0.6);
+
+        sprite.position.set(
+          Math.cos(angle) * radius,
+          yOffset,
+          Math.sin(angle) * radius
+        );
+
+        galaxyGroup.add(sprite);
+      });
+
+      // 3. Звезден прах
+      const dustCount = 4200;
+      const dustGeo = new THREE.BufferGeometry();
+      const dustPos = new Float32Array(dustCount * 3);
+      const dustCol = new Float32Array(dustCount * 3);
+
+      const colPink = new THREE.Color(0xff4da6);
+      const colPurple = new THREE.Color(0x9d4edd);
+      const colWhite = new THREE.Color(0xffffff);
+
+      for (let i = 0; i < dustCount; i++) {
+        const arm = i % arms;
+        const r = 5 + Math.pow(Math.random(), 1.3) * 35;
+        const spinAngle = r * 0.22;
+        const branchAngle = (arm / arms) * Math.PI * 2;
+
+        const randomX = Math.pow(Math.random(), 3) * (Math.random() < 0.5 ? 1 : -1) * 2.5;
+        const randomY = Math.pow(Math.random(), 3) * (Math.random() < 0.5 ? 1 : -1) * 2.0;
+        const randomZ = Math.pow(Math.random(), 3) * (Math.random() < 0.5 ? 1 : -1) * 2.5;
+
+        dustPos[i * 3] = Math.cos(branchAngle + spinAngle) * r + randomX;
+        dustPos[i * 3 + 1] = randomY;
+        dustPos[i * 3 + 2] = Math.sin(branchAngle + spinAngle) * r + randomZ;
+
+        const pick = Math.random();
+        const c = pick < 0.45 ? colPink : (pick < 0.8 ? colPurple : colWhite);
+        dustCol[i * 3] = c.r;
+        dustCol[i * 3 + 1] = c.g;
+        dustCol[i * 3 + 2] = c.b;
+      }
+
+      dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPos, 3));
+      dustGeo.setAttribute('color', new THREE.BufferAttribute(dustCol, 3));
+
+      const dustMat = new THREE.PointsMaterial({
+        size: 0.16,
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.75,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+      });
+
+      const galaxyDust = new THREE.Points(dustGeo, dustMat);
+      galaxyGroup.add(galaxyDust);
+
+      // 4. Дълбок звезден фон
+      const bgStarsCount = 2200;
+      const bgStarsGeo = new THREE.BufferGeometry();
+      const bgStarsPos = new Float32Array(bgStarsCount * 3);
+
+      for (let i = 0; i < bgStarsCount; i++) {
+        const u = Math.random();
+        const v = Math.random();
+        const theta = u * 2.0 * Math.PI;
+        const phi = Math.acos(2.0 * v - 1.0);
+        const rad = 75 + Math.random() * 140;
+
+        bgStarsPos[i * 3] = rad * Math.sin(phi) * Math.cos(theta);
+        bgStarsPos[i * 3 + 1] = rad * Math.sin(phi) * Math.sin(theta);
+        bgStarsPos[i * 3 + 2] = rad * Math.cos(phi);
+      }
+
+      bgStarsGeo.setAttribute('position', new THREE.BufferAttribute(bgStarsPos, 3));
+      const bgStarsMat = new THREE.PointsMaterial({
+        color: 0xffe6f2,
+        size: 0.35,
+        transparent: true,
+        opacity: 0.65
+      });
+      scene.add(new THREE.Points(bgStarsGeo, bgStarsMat));
+
+      // 5. Малки летящи сърчица
+      function createHeartTexture() {
+        const c = document.createElement('canvas');
+        c.width = 64;
+        c.height = 64;
+        const ctx = c.getContext('2d');
+        ctx.fillStyle = '#ff3385';
+        ctx.shadowColor = '#ff66a3';
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.moveTo(32, 52);
+        ctx.bezierCurveTo(32, 49, 10, 35, 10, 21);
+        ctx.bezierCurveTo(10, 12, 18, 8, 25, 12);
+        ctx.bezierCurveTo(29, 14, 32, 18, 32, 20);
+        ctx.bezierCurveTo(32, 18, 35, 14, 39, 12);
+        ctx.bezierCurveTo(46, 8, 54, 12, 54, 21);
+        ctx.bezierCurveTo(54, 35, 32, 49, 32, 52);
+        ctx.fill();
+        return new THREE.CanvasTexture(c);
+      }
+
+      const floatingHearts = [];
+      const heartTex = createHeartTexture();
+      for (let i = 0; i < 45; i++) {
+        const mat = new THREE.SpriteMaterial({
+          map: heartTex,
+          transparent: true,
+          opacity: 0.75,
+          blending: THREE.AdditiveBlending
+        });
+        const h = new THREE.Sprite(mat);
+        const angle = Math.random() * Math.PI * 2;
+        const dist = 6 + Math.random() * 26;
+        h.position.set(
+          Math.cos(angle) * dist,
+          (Math.random() - 0.5) * 18,
+          Math.sin(angle) * dist
+        );
+        const s = 0.5 + Math.random() * 0.7;
+        h.scale.set(s, s, 1);
+        h.userData = {
+          speedY: 0.015 + Math.random() * 0.025,
+          phase: Math.random() * Math.PI * 2
+        };
+        galaxyGroup.add(h);
+        floatingHearts.push(h);
+      }
+
+      galaxyGroup.rotation.z = 0.18;
+      galaxyGroup.rotation.x = 0.12;
+
+      window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+
+      const clock = new THREE.Clock();
+
+      function animate() {
+        requestAnimationFrame(animate);
+        const elapsed = clock.getElapsedTime();
+
+        const beat = 1 + Math.pow(Math.sin(elapsed * 3.2), 6) * 0.14;
+        heartMesh.scale.set(beat, beat, beat);
+        heartMesh.rotation.y = Math.sin(elapsed * 0.8) * 0.25;
+
+        nameSprite.scale.set(5.4 * beat, 2.7 * beat, 1);
+
+        galaxyDust.rotation.y = elapsed * 0.04;
+
+        floatingHearts.forEach(h => {
+          h.position.y += h.userData.speedY;
+          h.position.x += Math.sin(elapsed + h.userData.phase) * 0.01;
+          if (h.position.y > 12) {
+            h.position.y = -12;
+          }
+        });
+
+        controls.update();
+        renderer.render(scene, camera);
+      }
+
+      animate();
+    })();
+  </script>
+</body>
+</html>
