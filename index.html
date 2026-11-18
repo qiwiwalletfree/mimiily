@@ -30,8 +30,8 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      z-index: 100;
-      transition: opacity 1s ease, visibility 1s ease;
+      z-index: 9999;
+      transition: opacity 0.8s ease, visibility 0.8s ease;
     }
     #intro-screen.hidden {
       opacity: 0;
@@ -60,6 +60,7 @@
       box-shadow: 0 0 25px rgba(255, 30, 110, 0.6), inset 0 0 12px rgba(255, 255, 255, 0.3);
       animation: pulseStart 1.8s infinite ease-in-out;
       transition: transform 0.2s ease;
+      -webkit-tap-highlight-color: transparent;
     }
     #start-btn:active {
       transform: scale(0.94);
@@ -131,43 +132,80 @@
 
   <div id="intro-screen">
     <div class="intro-sub">Имам изненада за теб</div>
-    <button id="start-btn">Натисни ме ❤️</button>
+    <button id="start-btn" type="button">Натисни ме ❤️</button>
   </div>
 
-  <button id="music-btn" title="Музика">🎵</button>
+  <button id="music-btn" type="button" title="Музика">🎵</button>
   <div id="ui">
     <div class="hint" id="hint">Натисни върху „МИМИ“ в центъра ✨</div>
   </div>
   <audio id="bg-music" src="music.mp3" loop preload="auto"></audio>
 
+  <!-- Директно зареждане на Three.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
   <script>
-    // Зареждане на Three.js с резервни сървъри
-    function loadScript(urls, callback) {
-      let index = 0;
-      function tryNext() {
-        if (index >= urls.length) return;
-        const s = document.createElement('script');
-        s.src = urls[index++];
-        s.onload = callback;
-        s.onerror = tryNext;
-        document.head.appendChild(s);
+    // 1. Бутонът и музиката се инициализират ВЕДНАГА и независимо от 3D
+    (function() {
+      const introScreen = document.getElementById('intro-screen');
+      const startBtn = document.getElementById('start-btn');
+      const uiContainer = document.getElementById('ui');
+      const audio = document.getElementById('bg-music');
+      const musicBtn = document.getElementById('music-btn');
+      let isPlaying = false;
+      let hasMusicFile = true;
+
+      audio.addEventListener('error', () => {
+        hasMusicFile = false;
+        musicBtn.style.display = 'none';
+      });
+
+      function openSurprise() {
+        introScreen.classList.add('hidden');
+        uiContainer.style.opacity = '1';
+
+        if (hasMusicFile) {
+          musicBtn.style.display = 'flex';
+          audio.play().then(() => {
+            isPlaying = true;
+            musicBtn.classList.add('playing');
+          }).catch(() => {});
+        }
       }
-      tryNext();
-    }
 
-    loadScript([
-      "https://unpkg.com/three@0.128.0/build/three.min.js",
-      "https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js",
-      "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"
-    ], function() {
-      loadScript([
-        "https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js",
-        "https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"
-      ], initApp);
-    });
+      startBtn.addEventListener('click', openSurprise);
+      startBtn.addEventListener('touchend', function(e) {
+        e.preventDefault();
+        openSurprise();
+      }, { passive: false });
 
-    function initApp() {
+      musicBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (isPlaying) {
+          audio.pause();
+          isPlaying = false;
+          musicBtn.classList.remove('playing');
+          musicBtn.textContent = '🔇';
+        } else {
+          audio.play().then(() => {
+            isPlaying = true;
+            musicBtn.classList.add('playing');
+            musicBtn.textContent = '🎵';
+          }).catch(() => {});
+        }
+      });
+    })();
+
+    // 2. Инициализация на 3D галактиката, планетата от сърца и снимката
+    window.addEventListener('DOMContentLoaded', function() {
+      if (typeof THREE === 'undefined') {
+        console.error('Three.js не е зареден');
+        return;
+      }
+
       const PHOTO_URL = "photo.jpg";
+      const hintEl = document.getElementById('hint');
 
       const phrases = [
         "Обичам те", "Обичам те, Мими", "Много те обичам", "Обичам те безкрайно", "Ти си моето всичко",
@@ -191,49 +229,6 @@
         "T'estimo", "Maite zaitut", "Eu te quero", "Aloha wau iā ʻoe", "Aroha ahau ki a koe",
         "Ou te alofa ia te oe", "Ofa atu", "Kuv hlub koj", "Ndagukunda", "Обичам те завинаги"
       ];
-
-      const introScreen = document.getElementById('intro-screen');
-      const startBtn = document.getElementById('start-btn');
-      const uiContainer = document.getElementById('ui');
-      const hintEl = document.getElementById('hint');
-      const audio = document.getElementById('bg-music');
-      const musicBtn = document.getElementById('music-btn');
-      let isPlaying = false;
-      let hasMusicFile = true;
-
-      audio.addEventListener('error', () => {
-        hasMusicFile = false;
-        musicBtn.style.display = 'none';
-      });
-
-      startBtn.addEventListener('click', () => {
-        introScreen.classList.add('hidden');
-        uiContainer.style.opacity = '1';
-
-        if (hasMusicFile) {
-          musicBtn.style.display = 'flex';
-          audio.play().then(() => {
-            isPlaying = true;
-            musicBtn.classList.add('playing');
-          }).catch(() => {});
-        }
-      });
-
-      musicBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (isPlaying) {
-          audio.pause();
-          isPlaying = false;
-          musicBtn.classList.remove('playing');
-          musicBtn.textContent = '🔇';
-        } else {
-          audio.play().then(() => {
-            isPlaying = true;
-            musicBtn.classList.add('playing');
-            musicBtn.textContent = '🎵';
-          }).catch(() => {});
-        }
-      });
 
       const scene = new THREE.Scene();
       scene.fog = new THREE.FogExp2(0x030108, 0.0045);
@@ -575,4 +570,137 @@
       galaxyGroup.add(galaxyDust);
 
       // 4. Кръгла планета от сърца около цялата галактика
-      function creat
+      function createPlanetHeartTexture() {
+        const c = document.createElement('canvas');
+        c.width = 64;
+        c.height = 64;
+        const ctx = c.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.shadowColor = '#ff4da6';
+        ctx.shadowBlur = 12;
+        ctx.beginPath();
+        ctx.moveTo(32, 52);
+        ctx.bezierCurveTo(32, 49, 10, 35, 10, 21);
+        ctx.bezierCurveTo(10, 12, 18, 8, 25, 12);
+        ctx.bezierCurveTo(29, 14, 32, 18, 32, 20);
+        ctx.bezierCurveTo(32, 18, 35, 14, 39, 12);
+        ctx.bezierCurveTo(46, 8, 54, 12, 54, 21);
+        ctx.bezierCurveTo(54, 35, 32, 49, 32, 52);
+        ctx.fill();
+        return new THREE.CanvasTexture(c);
+      }
+
+      const planetHeartCount = 950;
+      const planetRadius = 42;
+      const planetGeo = new THREE.BufferGeometry();
+      const planetPos = new Float32Array(planetHeartCount * 3);
+      const planetCol = new Float32Array(planetHeartCount * 3);
+
+      const pCol1 = new THREE.Color(0xff2a85);
+      const pCol2 = new THREE.Color(0xff85c2);
+      const pCol3 = new THREE.Color(0xd966ff);
+
+      const goldenRatio = (1 + Math.sqrt(5)) / 2;
+      for (let i = 0; i < planetHeartCount; i++) {
+        const theta = (2 * Math.PI * i) / goldenRatio;
+        const phi = Math.acos(1 - (2 * (i + 0.5)) / planetHeartCount);
+        const rJitter = planetRadius + (Math.random() - 0.5) * 1.4;
+
+        planetPos[i * 3] = rJitter * Math.sin(phi) * Math.cos(theta);
+        planetPos[i * 3 + 1] = rJitter * Math.cos(phi);
+        planetPos[i * 3 + 2] = rJitter * Math.sin(phi) * Math.sin(theta);
+
+        const rnd = Math.random();
+        const col = rnd < 0.45 ? pCol1 : (rnd < 0.8 ? pCol2 : pCol3);
+        planetCol[i * 3] = col.r;
+        planetCol[i * 3 + 1] = col.g;
+        planetCol[i * 3 + 2] = col.b;
+      }
+
+      planetGeo.setAttribute('position', new THREE.BufferAttribute(planetPos, 3));
+      planetGeo.setAttribute('color', new THREE.BufferAttribute(planetCol, 3));
+
+      const planetMat = new THREE.PointsMaterial({
+        size: 1.35,
+        map: createPlanetHeartTexture(),
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.82,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+      });
+
+      const heartPlanet = new THREE.Points(planetGeo, planetMat);
+      scene.add(heartPlanet);
+
+      // 5. Дълбок звезден фон
+      const bgStarsCount = 2000;
+      const bgStarsGeo = new THREE.BufferGeometry();
+      const bgStarsPos = new Float32Array(bgStarsCount * 3);
+
+      for (let i = 0; i < bgStarsCount; i++) {
+        const u = Math.random();
+        const v = Math.random();
+        const theta = u * 2.0 * Math.PI;
+        const phi = Math.acos(2.0 * v - 1.0);
+        const rad = 85 + Math.random() * 140;
+
+        bgStarsPos[i * 3] = rad * Math.sin(phi) * Math.cos(theta);
+        bgStarsPos[i * 3 + 1] = rad * Math.sin(phi) * Math.sin(theta);
+        bgStarsPos[i * 3 + 2] = rad * Math.cos(phi);
+      }
+
+      bgStarsGeo.setAttribute('position', new THREE.BufferAttribute(bgStarsPos, 3));
+      const bgStarsMat = new THREE.PointsMaterial({
+        color: 0xffe6f2,
+        size: 0.35,
+        transparent: true,
+        opacity: 0.65
+      });
+      scene.add(new THREE.Points(bgStarsGeo, bgStarsMat));
+
+      galaxyGroup.rotation.z = 0.16;
+      galaxyGroup.rotation.x = 0.10;
+
+      window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+
+      const clock = new THREE.Clock();
+
+      function animate() {
+        requestAnimationFrame(animate);
+        const elapsed = clock.getElapsedTime();
+
+        const target = showPhotoMode ? 1 : 0;
+        transitionProgress += (target - transitionProgress) * 0.08;
+
+        const heartScaleFactor = Math.max(0.001, 1 - transitionProgress);
+        const beat = 1 + Math.pow(Math.sin(elapsed * 3.2), 6) * 0.14;
+
+        heartMesh.scale.set(beat * heartScaleFactor, beat * heartScaleFactor, beat * heartScaleFactor);
+        heartMesh.rotation.y = Math.sin(elapsed * 0.8) * 0.25;
+        heartMat.opacity = 0.88 * heartScaleFactor;
+
+        nameSprite.scale.set(5.4 * beat * heartScaleFactor, 2.7 * beat * heartScaleFactor, 1);
+        nameSprite.material.opacity = heartScaleFactor;
+
+        const photoScale = 8.4 * transitionProgress;
+        photoSprite.scale.set(Math.max(0.001, photoScale), Math.max(0.001, photoScale), 1);
+        photoSprite.material.opacity = transitionProgress;
+
+        galaxyDust.rotation.y = elapsed * 0.04;
+        heartPlanet.rotation.y = -elapsed * 0.05;
+        heartPlanet.rotation.x = Math.sin(elapsed * 0.15) * 0.15;
+
+        controls.update();
+        renderer.render(scene, camera);
+      }
+
+      animate();
+    });
+  </script>
+</body>
+</html>
