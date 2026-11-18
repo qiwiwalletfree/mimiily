@@ -22,7 +22,7 @@
       touch-action: none;
     }
 
-    /* Стартов екран с бутон */
+    /* Стартов екран */
     #intro-screen {
       position: fixed;
       inset: 0;
@@ -40,7 +40,7 @@
       pointer-events: none;
     }
     .intro-sub {
-      color: rgba(255, 200, 225, 0.7);
+      color: rgba(255, 200, 225, 0.75);
       font-size: 14px;
       letter-spacing: 2px;
       text-transform: uppercase;
@@ -74,26 +74,28 @@
       50% { opacity: 1; transform: translateY(-4px); }
     }
 
-    /* Интерфейс на галактиката */
+    /* Интерфейс */
     #ui {
       position: fixed;
       top: 20px;
       left: 0;
       width: 100%;
       display: flex;
-      justify-content: center;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
       pointer-events: none;
       z-index: 10;
       opacity: 0;
       transition: opacity 1.2s ease;
     }
     .hint {
-      color: rgba(255, 210, 230, 0.85);
-      font-size: 13px;
-      letter-spacing: 0.5px;
+      color: rgba(255, 210, 230, 0.9);
+      font-size: 12px;
+      letter-spacing: 0.4px;
       background: rgba(255, 255, 255, 0.08);
       backdrop-filter: blur(8px);
-      padding: 8px 18px;
+      padding: 7px 16px;
       border-radius: 20px;
       border: 1px solid rgba(255, 105, 180, 0.3);
       transition: opacity 0.6s ease;
@@ -129,14 +131,15 @@
 </head>
 <body>
 
-  <!-- Начален екран -->
   <div id="intro-screen">
     <div class="intro-sub">Имам изненада за теб</div>
     <button id="start-btn">Натисни ме ❤️</button>
   </div>
 
   <button id="music-btn" title="Музика">🎵</button>
-  <div id="ui"><div class="hint" id="hint">Завърти с пръст • Приближи с два</div></div>
+  <div id="ui">
+    <div class="hint" id="hint">Натисни върху „МИМИ“ в центъра ✨</div>
+  </div>
   <audio id="bg-music" src="music.mp3" loop preload="auto"></audio>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -144,6 +147,11 @@
 
   <script>
     (function() {
+      // =========================================================
+      // ИМЕ НА ФАЙЛА СЪС СНИМКАТА В СЪЩАТА ПАПКА:
+      const PHOTO_URL = "photo.jpg";
+      // =========================================================
+
       const phrases = [
         "Обичам те", "Обичам те, Мими", "Много те обичам", "Обичам те безкрайно", "Ти си моето всичко",
         "I love you", "Я тебя люблю", "Я тебе кохаю", "Я цябе кахаю", "Обичам те",
@@ -170,6 +178,7 @@
       const introScreen = document.getElementById('intro-screen');
       const startBtn = document.getElementById('start-btn');
       const uiContainer = document.getElementById('ui');
+      const hintEl = document.getElementById('hint');
       const audio = document.getElementById('bg-music');
       const musicBtn = document.getElementById('music-btn');
       let isPlaying = false;
@@ -180,7 +189,6 @@
         musicBtn.style.display = 'none';
       });
 
-      // Натискане на стартовия бутон
       startBtn.addEventListener('click', () => {
         introScreen.classList.add('hidden');
         uiContainer.style.opacity = '1';
@@ -212,32 +220,28 @@
 
       // Сцена, камера, рендерер
       const scene = new THREE.Scene();
-      scene.fog = new THREE.FogExp2(0x030108, 0.008);
+      scene.fog = new THREE.FogExp2(0x030108, 0.0045);
 
       const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-      camera.position.set(0, 14, 38);
+      camera.position.set(0, 16, 48);
 
       const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
       renderer.setSize(window.innerWidth, window.innerHeight);
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
       document.body.appendChild(renderer.domElement);
 
-      const controls = new THREE.OrbitControls(camera, renderer.domElement);
+      const controls = new OrbitControls(camera, renderer.domElement);
       controls.enableDamping = true;
       controls.dampingFactor = 0.05;
       controls.minDistance = 8;
-      controls.maxDistance = 85;
+      controls.maxDistance = 110;
       controls.autoRotate = true;
-      controls.autoRotateSpeed = 0.7;
-
-      controls.addEventListener('start', () => {
-        document.getElementById('hint').style.opacity = '0';
-      });
+      controls.autoRotateSpeed = 0.65;
 
       const galaxyGroup = new THREE.Group();
       scene.add(galaxyGroup);
 
-      // 1. 3D сърце от светещи частици
+      // 1. 3D сърце от светещи частици в центъра
       const heartParticleCount = 3400;
       const heartGeo = new THREE.BufferGeometry();
       const heartPositions = new Float32Array(heartParticleCount * 3);
@@ -250,10 +254,10 @@
         const t = Math.random() * Math.PI * 2;
         let x = 16 * Math.pow(Math.sin(t), 3);
         let y = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t);
-
+        
         const r = Math.pow(Math.random(), 0.45);
         const zSpread = (1 - r * 0.7) * 5.5 * (Math.random() * 2 - 1);
-
+        
         const scale = 0.25 * r;
         heartPositions[i * 3] = x * scale + (Math.random() - 0.5) * 0.3;
         heartPositions[i * 3 + 1] = (y * scale) + 1.2 + (Math.random() - 0.5) * 0.3;
@@ -272,7 +276,7 @@
         size: 0.22,
         vertexColors: true,
         transparent: true,
-        opacity: 0.85,
+        opacity: 0.88,
         blending: THREE.AdditiveBlending,
         depthWrite: false
       });
@@ -280,7 +284,7 @@
       const heartMesh = new THREE.Points(heartGeo, heartMat);
       galaxyGroup.add(heartMesh);
 
-      // 1.5. Име МИМИ в центъра на сърцето
+      // 1.5. Кликаемо име МИМИ в центъра
       function createCenterNameSprite(name) {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
@@ -307,6 +311,7 @@
         const material = new THREE.SpriteMaterial({
           map: texture,
           transparent: true,
+          opacity: 1,
           depthTest: false,
           depthWrite: false
         });
@@ -314,14 +319,161 @@
         const sprite = new THREE.Sprite(material);
         sprite.scale.set(5.4, 2.7, 1);
         sprite.position.set(0, 0.8, 0);
-        sprite.renderOrder = 10;
+        sprite.renderOrder = 12;
         return sprite;
       }
 
       const nameSprite = createCenterNameSprite("МИМИ");
       galaxyGroup.add(nameSprite);
 
-      // 2. Текстови спрайтове
+      // 1.6. Кръгла снимка с неонова рамка (появява се при натискане върху МИМИ)
+      function createPhotoSprite(url) {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = 512;
+        canvas.height = 512;
+
+        const drawFrame = (img) => {
+          ctx.clearRect(0, 0, 512, 512);
+          const cx = 256, cy = 240, radius = 195;
+
+          // Външно сияние
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+          ctx.shadowColor = '#ff1e7a';
+          ctx.shadowBlur = 35;
+          ctx.fillStyle = '#240515';
+          ctx.fill();
+          ctx.restore();
+
+          // Изрязване на снимката в кръг
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(cx, cy, radius - 6, 0, Math.PI * 2);
+          ctx.closePath();
+          ctx.clip();
+
+          if (img) {
+            const aspect = img.width / img.height;
+            let dw = radius * 2, dh = radius * 2;
+            if (aspect > 1) {
+              dw = dh * aspect;
+            } else {
+              dh = dw / aspect;
+            }
+            ctx.drawImage(img, cx - dw / 2, cy - dh / 2, dw, dh);
+          } else {
+            // Резервен красив фон, ако снимката още не е качена
+            const grad = ctx.createRadialGradient(cx, cy, 20, cx, cy, radius);
+            grad.addColorStop(0, '#ff4d94');
+            grad.addColorStop(1, '#4a0424');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, 512, 512);
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 42px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('❤️ МИМИ ❤️', cx, cy + 12);
+          }
+          ctx.restore();
+
+          // Неонов пръстен около снимката
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(cx, cy, radius - 3, 0, Math.PI * 2);
+          ctx.lineWidth = 8;
+          ctx.strokeStyle = '#ff66b2';
+          ctx.shadowColor = '#ff0066';
+          ctx.shadowBlur = 20;
+          ctx.stroke();
+          ctx.restore();
+
+          // Надпис МИМИ отдолу под снимката
+          ctx.save();
+          ctx.font = '800 44px "Segoe UI", Arial, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.shadowColor = '#ff0055';
+          ctx.shadowBlur = 16;
+          ctx.lineWidth = 5;
+          ctx.strokeStyle = '#1a000d';
+          ctx.strokeText('МИМИ ❤️', cx, 476);
+          ctx.fillStyle = '#ffffff';
+          ctx.fillText('МИМИ ❤️', cx, 476);
+          ctx.restore();
+        };
+
+        drawFrame(null);
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.minFilter = THREE.LinearFilter;
+
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.onload = () => {
+          drawFrame(img);
+          texture.needsUpdate = true;
+        };
+        img.src = url;
+
+        const material = new THREE.SpriteMaterial({
+          map: texture,
+          transparent: true,
+          opacity: 0,
+          depthTest: false,
+          depthWrite: false
+        });
+
+        const sprite = new THREE.Sprite(material);
+        sprite.scale.set(0.01, 0.01, 1);
+        sprite.position.set(0, 1.0, 0);
+        sprite.renderOrder = 15;
+        return sprite;
+      }
+
+      const photoSprite = createPhotoSprite(PHOTO_URL);
+      galaxyGroup.add(photoSprite);
+
+      // Логика за превключване Сърце <-> Снимка при клик
+      let showPhotoMode = false;
+      let transitionProgress = 0; // 0 = сърце, 1 = снимка
+
+      const raycaster = new THREE.Raycaster();
+      const pointer = new THREE.Vector2();
+      let downPos = { x: 0, y: 0 };
+
+      renderer.domElement.addEventListener('pointerdown', (e) => {
+        downPos = { x: e.clientX, y: e.clientY };
+      });
+
+      renderer.domElement.addEventListener('pointerup', (e) => {
+        // Проверяваме дали е кратко натискане, а не завъртане на екрана
+        const dist = Math.hypot(e.clientX - downPos.x, e.clientY - downPos.y);
+        if (dist > 10) return;
+
+        const rect = renderer.domElement.getBoundingClientRect();
+        pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+        pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+        raycaster.setFromCamera(pointer, camera);
+
+        // Проверяем клик по името, по снимката или по зоната в центъра
+        const hitTargets = showPhotoMode ? [photoSprite, nameSprite] : [nameSprite];
+        const intersects = raycaster.intersectObjects(hitTargets);
+
+        // Допълнителна проверка за близост до центъра (за по-лесно уцелване с пръст на телефон)
+        const centerWorld = new THREE.Vector3(0, 1.0, 0);
+        galaxyGroup.localToWorld(centerWorld);
+        const distToRay = raycaster.ray.distanceToPoint(centerWorld);
+
+        if (intersects.length > 0 || distToRay < 3.4) {
+          showPhotoMode = !showPhotoMode;
+          hintEl.textContent = showPhotoMode 
+            ? "Натисни снимката, за да върнеш сърцето ❤️" 
+            : "Натисни върху „МИМИ“ в центъра ✨";
+          hintEl.style.opacity = '1';
+        }
+      });
+
+      // 2. Текстови спрайтове в галактиката
       function createTextSprite(text) {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
@@ -349,7 +501,7 @@
         });
 
         const sprite = new THREE.Sprite(material);
-        sprite.scale.set(7.5, 1.875, 1);
+        sprite.scale.set(7.2, 1.8, 1);
         return sprite;
       }
 
@@ -358,7 +510,7 @@
         const sprite = createTextSprite(phrase);
         const arm = idx % arms;
         const progress = idx / phrases.length;
-        const radius = 8.5 + progress * 24;
+        const radius = 8.5 + progress * 22;
         const angle = (arm * (Math.PI * 2 / arms)) + progress * Math.PI * 3.8;
         const yOffset = (Math.sin(idx * 1.7) * 3.5) * (0.4 + progress * 0.6);
 
@@ -371,8 +523,8 @@
         galaxyGroup.add(sprite);
       });
 
-      // 3. Звезден прах
-      const dustCount = 4200;
+      // 3. Звезден прах на галактиката
+      const dustCount = 3800;
       const dustGeo = new THREE.BufferGeometry();
       const dustPos = new Float32Array(dustCount * 3);
       const dustCol = new Float32Array(dustCount * 3);
@@ -383,7 +535,7 @@
 
       for (let i = 0; i < dustCount; i++) {
         const arm = i % arms;
-        const r = 5 + Math.pow(Math.random(), 1.3) * 35;
+        const r = 5 + Math.pow(Math.random(), 1.3) * 31;
         const spinAngle = r * 0.22;
         const branchAngle = (arm / arms) * Math.PI * 2;
 
@@ -409,7 +561,7 @@
         size: 0.16,
         vertexColors: true,
         transparent: true,
-        opacity: 0.75,
+        opacity: 0.72,
         blending: THREE.AdditiveBlending,
         depthWrite: false
       });
@@ -417,8 +569,73 @@
       const galaxyDust = new THREE.Points(dustGeo, dustMat);
       galaxyGroup.add(galaxyDust);
 
-      // 4. Дълбок звезден фон
-      const bgStarsCount = 2200;
+      // 4. КРЪГЛА ПЛАНЕТА ОТ СЪРЦА ОКОЛО ЦЯЛАТА ГАЛАКТИКА
+      function createPlanetHeartTexture() {
+        const c = document.createElement('canvas');
+        c.width = 64;
+        c.height = 64;
+        const ctx = c.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.shadowColor = '#ff4da6';
+        ctx.shadowBlur = 12;
+        ctx.beginPath();
+        ctx.moveTo(32, 52);
+        ctx.bezierCurveTo(32, 49, 10, 35, 10, 21);
+        ctx.bezierCurveTo(10, 12, 18, 8, 25, 12);
+        ctx.bezierCurveTo(29, 14, 32, 18, 32, 20);
+        ctx.bezierCurveTo(32, 18, 35, 14, 39, 12);
+        ctx.bezierCurveTo(46, 8, 54, 12, 54, 21);
+        ctx.bezierCurveTo(54, 35, 32, 49, 32, 52);
+        ctx.fill();
+        return new THREE.CanvasTexture(c);
+      }
+
+      const planetHeartCount = 950;
+      const planetRadius = 42; // Обгръща цялата галактика отвън
+      const planetGeo = new THREE.BufferGeometry();
+      const planetPos = new Float32Array(planetHeartCount * 3);
+      const planetCol = new Float32Array(planetHeartCount * 3);
+
+      const pCol1 = new THREE.Color(0xff2a85);
+      const pCol2 = new THREE.Color(0xff85c2);
+      const pCol3 = new THREE.Color(0xd966ff);
+
+      // Равномерно разпределение по сфера (Fibonacci sphere) + лек органичен шум
+      const goldenRatio = (1 + Math.sqrt(5)) / 2;
+      for (let i = 0; i < planetHeartCount; i++) {
+        const theta = (2 * Math.PI * i) / goldenRatio;
+        const phi = Math.acos(1 - (2 * (i + 0.5)) / planetHeartCount);
+        const rJitter = planetRadius + (Math.random() - 0.5) * 1.4;
+
+        planetPos[i * 3] = rJitter * Math.sin(phi) * Math.cos(theta);
+        planetPos[i * 3 + 1] = rJitter * Math.cos(phi);
+        planetPos[i * 3 + 2] = rJitter * Math.sin(phi) * Math.sin(theta);
+
+        const rnd = Math.random();
+        const col = rnd < 0.45 ? pCol1 : (rnd < 0.8 ? pCol2 : pCol3);
+        planetCol[i * 3] = col.r;
+        planetCol[i * 3 + 1] = col.g;
+        planetCol[i * 3 + 2] = col.b;
+      }
+
+      planetGeo.setAttribute('position', new THREE.BufferAttribute(planetPos, 3));
+      planetGeo.setAttribute('color', new THREE.BufferAttribute(planetCol, 3));
+
+      const planetMat = new THREE.PointsMaterial({
+        size: 1.35,
+        map: createPlanetHeartTexture(),
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.82,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+      });
+
+      const heartPlanet = new THREE.Points(planetGeo, planetMat);
+      scene.add(heartPlanet);
+
+      // 5. Дълбок звезден фон
+      const bgStarsCount = 2000;
       const bgStarsGeo = new THREE.BufferGeometry();
       const bgStarsPos = new Float32Array(bgStarsCount * 3);
 
@@ -427,7 +644,7 @@
         const v = Math.random();
         const theta = u * 2.0 * Math.PI;
         const phi = Math.acos(2.0 * v - 1.0);
-        const rad = 75 + Math.random() * 140;
+        const rad = 85 + Math.random() * 140;
 
         bgStarsPos[i * 3] = rad * Math.sin(phi) * Math.cos(theta);
         bgStarsPos[i * 3 + 1] = rad * Math.sin(phi) * Math.sin(theta);
@@ -443,56 +660,8 @@
       });
       scene.add(new THREE.Points(bgStarsGeo, bgStarsMat));
 
-      // 5. Малки летящи сърчица
-      function createHeartTexture() {
-        const c = document.createElement('canvas');
-        c.width = 64;
-        c.height = 64;
-        const ctx = c.getContext('2d');
-        ctx.fillStyle = '#ff3385';
-        ctx.shadowColor = '#ff66a3';
-        ctx.shadowBlur = 10;
-        ctx.beginPath();
-        ctx.moveTo(32, 52);
-        ctx.bezierCurveTo(32, 49, 10, 35, 10, 21);
-        ctx.bezierCurveTo(10, 12, 18, 8, 25, 12);
-        ctx.bezierCurveTo(29, 14, 32, 18, 32, 20);
-        ctx.bezierCurveTo(32, 18, 35, 14, 39, 12);
-        ctx.bezierCurveTo(46, 8, 54, 12, 54, 21);
-        ctx.bezierCurveTo(54, 35, 32, 49, 32, 52);
-        ctx.fill();
-        return new THREE.CanvasTexture(c);
-      }
-
-      const floatingHearts = [];
-      const heartTex = createHeartTexture();
-      for (let i = 0; i < 45; i++) {
-        const mat = new THREE.SpriteMaterial({
-          map: heartTex,
-          transparent: true,
-          opacity: 0.75,
-          blending: THREE.AdditiveBlending
-        });
-        const h = new THREE.Sprite(mat);
-        const angle = Math.random() * Math.PI * 2;
-        const dist = 6 + Math.random() * 26;
-        h.position.set(
-          Math.cos(angle) * dist,
-          (Math.random() - 0.5) * 18,
-          Math.sin(angle) * dist
-        );
-        const s = 0.5 + Math.random() * 0.7;
-        h.scale.set(s, s, 1);
-        h.userData = {
-          speedY: 0.015 + Math.random() * 0.025,
-          phase: Math.random() * Math.PI * 2
-        };
-        galaxyGroup.add(h);
-        floatingHearts.push(h);
-      }
-
-      galaxyGroup.rotation.z = 0.18;
-      galaxyGroup.rotation.x = 0.12;
+      galaxyGroup.rotation.z = 0.16;
+      galaxyGroup.rotation.x = 0.10;
 
       window.addEventListener('resize', () => {
         camera.aspect = window.innerWidth / window.innerHeight;
@@ -506,21 +675,29 @@
         requestAnimationFrame(animate);
         const elapsed = clock.getElapsedTime();
 
+        // Плавен преход между сърцето и снимката
+        const target = showPhotoMode ? 1 : 0;
+        transitionProgress += (target - transitionProgress) * 0.08;
+
+        const heartScaleFactor = Math.max(0.001, 1 - transitionProgress);
         const beat = 1 + Math.pow(Math.sin(elapsed * 3.2), 6) * 0.14;
-        heartMesh.scale.set(beat, beat, beat);
+
+        heartMesh.scale.set(beat * heartScaleFactor, beat * heartScaleFactor, beat * heartScaleFactor);
         heartMesh.rotation.y = Math.sin(elapsed * 0.8) * 0.25;
+        heartMat.opacity = 0.88 * heartScaleFactor;
 
-        nameSprite.scale.set(5.4 * beat, 2.7 * beat, 1);
+        nameSprite.scale.set(5.4 * beat * heartScaleFactor, 2.7 * beat * heartScaleFactor, 1);
+        nameSprite.material.opacity = heartScaleFactor;
 
+        // Анимация на снимката при отваряне
+        const photoScale = 8.4 * transitionProgress;
+        photoSprite.scale.set(Math.max(0.001, photoScale), Math.max(0.001, photoScale), 1);
+        photoSprite.material.opacity = transitionProgress;
+
+        // Въртене на галактиката и външната планета от сърца
         galaxyDust.rotation.y = elapsed * 0.04;
-
-        floatingHearts.forEach(h => {
-          h.position.y += h.userData.speedY;
-          h.position.x += Math.sin(elapsed + h.userData.phase) * 0.01;
-          if (h.position.y > 12) {
-            h.position.y = -12;
-          }
-        });
+        heartPlanet.rotation.y = -elapsed * 0.05;
+        heartPlanet.rotation.x = Math.sin(elapsed * 0.15) * 0.15;
 
         controls.update();
         renderer.render(scene, camera);
