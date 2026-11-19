@@ -2,1164 +2,382 @@
 <html lang="bg">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Обичам те, МИМИ</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>За теб ❤️</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;1,600&family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body, html {
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
       width: 100%;
       height: 100%;
       overflow: hidden;
-      background-color: #030108;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: radial-gradient(circle at 50% 40%, #14081e 0%, #06030c 70%, #020105 100%);
+      color: #fff;
+      font-family: 'Montserrat', sans-serif;
       user-select: none;
-      -webkit-user-select: none;
-    }
-    #webgl-canvas {
-      display: block;
-      width: 100%;
-      height: 100%;
-      touch-action: none;
-    }
-    #trail-canvas {
-      position: fixed;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      pointer-events: none;
-      z-index: 15;
     }
 
-    #intro-screen {
+    #starfield {
       position: fixed;
       inset: 0;
-      background: radial-gradient(circle at center, #1a0514 0%, #030108 100%);
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+    }
+
+    /* Стартов екран "Натисни ме" */
+    #start-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      background: rgba(5, 2, 10, 0.92);
+      backdrop-filter: blur(8px);
       display: flex;
-      flex-direction: column;
       align-items: center;
       justify-content: center;
-      z-index: 9999;
-      transition: opacity 0.7s ease, visibility 0.7s ease;
+      transition: opacity 0.8s ease, visibility 0.8s ease;
     }
-    #intro-screen.hidden {
+
+    #start-overlay.hidden {
       opacity: 0;
       visibility: hidden;
       pointer-events: none;
     }
-    .intro-sub {
-      color: rgba(255, 200, 225, 0.75);
-      font-size: 14px;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      margin-bottom: 24px;
-      animation: fadeFloat 2.5s infinite ease-in-out;
-    }
+
     #start-btn {
-      position: relative;
+      background: linear-gradient(135deg, #ff4d94 0%, #c91865 100%);
+      border: 1px solid rgba(255, 190, 220, 0.6);
+      color: #fff;
       padding: 18px 42px;
-      font-size: 20px;
-      font-weight: 700;
-      color: #ffffff;
-      background: linear-gradient(135deg, #ff1e6e 0%, #ff5e9c 100%);
-      border: 1px solid rgba(255, 180, 210, 0.6);
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
       border-radius: 50px;
       cursor: pointer;
-      letter-spacing: 1px;
-      box-shadow: 0 0 25px rgba(255, 30, 110, 0.6), inset 0 0 12px rgba(255, 255, 255, 0.3);
-      animation: pulseStart 1.8s infinite ease-in-out;
-      transition: transform 0.2s ease;
-      -webkit-tap-highlight-color: transparent;
-    }
-    #start-btn:active {
-      transform: scale(0.94);
-    }
-    @keyframes pulseStart {
-      0%, 100% { transform: scale(1); box-shadow: 0 0 25px rgba(255, 30, 110, 0.6); }
-      50% { transform: scale(1.07); box-shadow: 0 0 45px rgba(255, 45, 125, 0.95); }
-    }
-    @keyframes fadeFloat {
-      0%, 100% { opacity: 0.6; transform: translateY(0); }
-      50% { opacity: 1; transform: translateY(-4px); }
+      box-shadow: 0 0 30px rgba(255, 77, 148, 0.65);
+      animation: pulseBtn 2s infinite;
     }
 
-    #ui {
-      position: fixed;
-      top: 20px;
-      left: 0;
+    @keyframes pulseBtn {
+      0%, 100% { transform: scale(1); box-shadow: 0 0 25px rgba(255, 77, 148, 0.6); }
+      50% { transform: scale(1.05); box-shadow: 0 0 42px rgba(255, 77, 148, 0.95); }
+    }
+
+    /* Основен контейнер */
+    .main-content {
+      position: relative;
+      z-index: 10;
       width: 100%;
+      height: 100%;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 8px;
-      pointer-events: none;
-      z-index: 10;
-      opacity: 0;
-      transition: opacity 1.2s ease;
+      justify-content: center;
+      padding: 20px;
+      text-align: center;
     }
-    .hint {
-      color: rgba(255, 210, 230, 0.9);
-      font-size: 12px;
-      letter-spacing: 0.4px;
-      background: rgba(255, 255, 255, 0.08);
-      backdrop-filter: blur(8px);
-      padding: 7px 16px;
-      border-radius: 20px;
-      border: 1px solid rgba(255, 105, 180, 0.3);
-      transition: opacity 0.6s ease;
-    }
-    #music-btn {
-      position: fixed;
-      top: 20px;
-      right: 16px;
-      width: 44px;
-      height: 44px;
-      border-radius: 50%;
-      background: rgba(255, 40, 110, 0.25);
-      border: 1px solid rgba(255, 105, 180, 0.6);
-      color: #fff;
-      font-size: 18px;
-      display: none;
+
+    /* Сърце / Снимка */
+    .heart-wrapper {
+      width: 190px;
+      height: 190px;
+      display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      z-index: 20;
+      margin-bottom: 22px;
+      position: relative;
+    }
+
+    .heart-icon {
+      width: 130px;
+      height: 130px;
+      fill: #ff3385;
+      filter: drop-shadow(0 0 25px rgba(255, 51, 133, 0.85));
+      animation: heartbeat 1.5s infinite ease-in-out;
+      transition: transform 0.4s ease, opacity 0.4s ease;
+    }
+
+    @keyframes heartbeat {
+      0%, 100% { transform: scale(1); }
+      14% { transform: scale(1.14); }
+      28% { transform: scale(1); }
+      42% { transform: scale(1.1); }
+      70% { transform: scale(1); }
+    }
+
+    .couple-photo {
+      width: 185px;
+      height: 185px;
+      object-fit: cover;
+      border-radius: 50%;
+      border: 3px solid rgba(255, 140, 190, 0.85);
+      box-shadow: 0 0 35px rgba(255, 77, 148, 0.75);
+      display: none;
+      animation: fadeInPhoto 0.5s ease;
+    }
+
+    @keyframes fadeInPhoto {
+      from { opacity: 0; transform: scale(0.85); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    .hint-text {
+      font-size: 12px;
+      color: rgba(255, 200, 225, 0.6);
+      letter-spacing: 0.08em;
+      margin-bottom: 14px;
+    }
+
+    .love-quote {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-size: clamp(1.5rem, 4vw, 2.3rem);
+      color: #ffe6f0;
+      text-shadow: 0 0 18px rgba(255, 105, 180, 0.65);
+      max-width: 650px;
+      line-height: 1.35;
+      margin-bottom: 10px;
+    }
+
+    /* Таймер (стъклени карти с неоново-розово сияние) */
+    #love-timer {
+      margin-top: 22px;
+      text-align: center;
+      z-index: 10;
+      position: relative;
+      font-family: 'Montserrat', sans-serif;
+    }
+
+    .timer-title {
+      font-size: 14px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: rgba(255, 220, 235, 0.85);
+      margin-bottom: 12px;
+      text-shadow: 0 0 12px rgba(255, 105, 180, 0.6);
+    }
+
+    .timer-boxes {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .t-box {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 140, 190, 0.38);
       backdrop-filter: blur(6px);
-      box-shadow: 0 0 15px rgba(255, 40, 110, 0.4);
+      border-radius: 12px;
+      padding: 10px 14px;
+      min-width: 68px;
+      box-shadow: 0 0 18px rgba(255, 70, 140, 0.2);
     }
-    #music-btn.playing {
-      animation: pulseBtn 1.5s infinite;
+
+    .t-box span {
+      display: block;
+      font-size: 24px;
+      font-weight: 700;
+      color: #ffffff;
+      text-shadow: 0 0 10px rgba(255, 120, 180, 0.85);
+      line-height: 1.1;
     }
-    @keyframes pulseBtn {
-      0% { transform: scale(1); box-shadow: 0 0 10px rgba(255, 40, 110, 0.4); }
-      50% { transform: scale(1.1); box-shadow: 0 0 22px rgba(255, 40, 110, 0.8); }
-      100% { transform: scale(1); box-shadow: 0 0 10px rgba(255, 40, 110, 0.4); }
+
+    .t-box small {
+      display: block;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: rgba(255, 200, 225, 0.78);
+      margin-top: 4px;
+    }
+
+    /* Бутон за музика */
+    #music-toggle {
+      position: fixed;
+      bottom: 18px;
+      right: 18px;
+      z-index: 20;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 140, 190, 0.35);
+      backdrop-filter: blur(6px);
+      color: #ffd6e7;
+      padding: 9px 15px;
+      border-radius: 25px;
+      font-size: 12px;
+      cursor: pointer;
     }
   </style>
 </head>
 <body>
 
-  <div id="intro-screen">
-    <div class="intro-sub">Имам изненада за теб</div>
+  <!-- Стартов екран -->
+  <div id="start-overlay">
     <button id="start-btn" type="button">Натисни ме ❤️</button>
   </div>
 
-  <canvas id="trail-canvas"></canvas>
+  <!-- Звездно небе -->
+  <canvas id="starfield"></canvas>
 
-  <button id="music-btn" type="button" title="Музика">🎵</button>
-  <div id="ui">
-    <div class="hint" id="hint">Натисни върху „МИМИ“ в центъра ✨</div>
-  </div>
-  <audio id="bg-music" src="music.mp3" loop preload="auto"></audio>
+  <!-- Основно съдържание -->
+  <main class="main-content">
+    <div class="heart-wrapper" id="heart-toggle" title="Натисни сърцето">
+      <svg class="heart-icon" id="heart-svg" viewBox="0 0 32 29.6">
+        <path d="M23.6,0c-3.4,0-6.3,2.7-7.6,5.6C14.7,2.7,11.8,0,8.4,0C3.8,0,0,3.8,0,8.4c0,9.4,9.5,11.9,16,21.2
+        c6.1-9.3,16-12.1,16-21.2C32,3.8,28.2,0,23.6,0z"/>
+      </svg>
+      <img src="photo.jpg" alt="Ние" class="couple-photo" id="couple-img">
+    </div>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <div class="hint-text">(натисни сърцето)</div>
+
+    <div class="love-quote">
+      Всяка звезда на небето ми напомня за теб... ✨
+    </div>
+
+    <!-- Таймер от 19.09.2026 11:59 -->
+    <div id="love-timer">
+      <div class="timer-title">Заедно сме вече:</div>
+      <div class="timer-boxes">
+        <div class="t-box"><span id="t-days">0</span><small>дни</small></div>
+        <div class="t-box"><span id="t-hours">00</span><small>часа</small></div>
+        <div class="t-box"><span id="t-mins">00</span><small>минути</small></div>
+        <div class="t-box"><span id="t-secs">00</span><small>секунди</small></div>
+      </div>
+    </div>
+  </main>
+
+  <audio id="bg-audio" src="music.mp3" loop preload="auto"></audio>
+  <button id="music-toggle" type="button">🔊 Музика</button>
 
   <script>
-    window.addEventListener('DOMContentLoaded', function() {
-      const introScreen = document.getElementById('intro-screen');
-      const startBtn = document.getElementById('start-btn');
-      const uiContainer = document.getElementById('ui');
-      const hintEl = document.getElementById('hint');
-      const audio = document.getElementById('bg-music');
-      const musicBtn = document.getElementById('music-btn');
-      let isPlaying = false;
-      let hasMusicFile = true;
+    // 1. Звездно небе
+    (function() {
+      const canvas = document.getElementById('starfield');
+      const ctx = canvas.getContext('2d');
+      let w = canvas.width = window.innerWidth;
+      let h = canvas.height = window.innerHeight;
+      const stars = [];
+      const count = Math.min(240, Math.floor((w * h) / 6500));
 
-      let flightState = 'idle'; // 'idle' -> 'tunnel' -> 'galaxy'
-      let flightStartTime = 0;
-      const FLIGHT_DURATION = 4.2;
-
-      audio.addEventListener('error', () => {
-        hasMusicFile = false;
-        musicBtn.style.display = 'none';
-      });
-
-      function startExperience() {
-        if (flightState !== 'idle') return;
-        introScreen.classList.add('hidden');
-        flightState = 'tunnel';
-        flightStartTime = performance.now() * 0.001;
-
-        if (hasMusicFile) {
-          musicBtn.style.display = 'flex';
-          audio.play().then(() => {
-            isPlaying = true;
-            musicBtn.classList.add('playing');
-          }).catch(() => {});
-        }
-      }
-
-      startBtn.addEventListener('click', startExperience);
-      startBtn.addEventListener('touchend', function(e) {
-        e.preventDefault();
-        startExperience();
-      }, { passive: false });
-
-      musicBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (isPlaying) {
-          audio.pause();
-          isPlaying = false;
-          musicBtn.classList.remove('playing');
-          musicBtn.textContent = '🔇';
-        } else {
-          audio.play().then(() => {
-            isPlaying = true;
-            musicBtn.classList.add('playing');
-            musicBtn.textContent = '🎵';
-          }).catch(() => {});
-        }
-      });
-
-      // =========================================================
-      // 2D СВЕТЛИННА ДИРЯ ОТ СЪРЧИЦА И ИСКРИ ЗАД ПРЪСТА
-      // =========================================================
-      const trailCanvas = document.getElementById('trail-canvas');
-      const tCtx = trailCanvas.getContext('2d');
-      let tWidth = trailCanvas.width = window.innerWidth;
-      let tHeight = trailCanvas.height = window.innerHeight;
-      const trailParticles = [];
-      let lastSpawnTime = 0;
-
-      function spawnTrailParticle(x, y) {
-        const colors = ['#ff2a85', '#ff66b2', '#ffd1e8', '#d966ff', '#ffe066'];
-        const isHeart = Math.random() < 0.68;
-        trailParticles.push({
-          x: x + (Math.random() - 0.5) * 8,
-          y: y + (Math.random() - 0.5) * 8,
-          vx: (Math.random() - 0.5) * 1.4,
-          vy: -0.5 - Math.random() * 1.2,
-          size: isHeart ? (7 + Math.random() * 7) : (2 + Math.random() * 3),
-          alpha: 1,
-          decay: 0.018 + Math.random() * 0.015,
-          color: colors[Math.floor(Math.random() * colors.length)],
-          isHeart: isHeart,
-          rot: (Math.random() - 0.5) * 0.6
+      for (let i = 0; i < count; i++) {
+        stars.push({
+          x: Math.random() * w,
+          y: Math.random() * h,
+          r: Math.random() * 1.6 + 0.4,
+          alpha: Math.random(),
+          dAlpha: (Math.random() * 0.02 + 0.005) * (Math.random() < 0.5 ? 1 : -1),
+          vy: Math.random() * 0.25 + 0.05
         });
       }
 
-      function drawMiniHeart(ctx, x, y, size, color, alpha, rot) {
-        ctx.save();
-        ctx.translate(x, y);
-        ctx.rotate(rot);
-        ctx.globalAlpha = Math.max(0, alpha);
-        ctx.fillStyle = color;
-        ctx.shadowColor = color;
-        ctx.shadowBlur = 10;
-        const s = size * 0.06;
-        ctx.beginPath();
-        ctx.moveTo(0, 6 * s);
-        ctx.bezierCurveTo(0, 4.5 * s, -8 * s, -1.5 * s, -8 * s, -6 * s);
-        ctx.bezierCurveTo(-8 * s, -10 * s, -4 * s, -12 * s, 0, -8 * s);
-        ctx.bezierCurveTo(4 * s, -12 * s, 8 * s, -10 * s, 8 * s, -6 * s);
-        ctx.bezierCurveTo(8 * s, -1.5 * s, 0, 4.5 * s, 0, 6 * s);
-        ctx.fill();
-        ctx.restore();
-      }
-
-      function updateAndDrawTrail() {
-        tCtx.clearRect(0, 0, tWidth, tHeight);
-        for (let i = trailParticles.length - 1; i >= 0; i--) {
-          const p = trailParticles[i];
-          p.x += p.vx;
-          p.y += p.vy;
-          p.alpha -= p.decay;
-          if (p.alpha <= 0) {
-            trailParticles.splice(i, 1);
-            continue;
-          }
-          if (p.isHeart) {
-            drawMiniHeart(tCtx, p.x, p.y, p.size, p.color, p.alpha, p.rot);
-          } else {
-            tCtx.save();
-            tCtx.globalAlpha = Math.max(0, p.alpha);
-            tCtx.fillStyle = p.color;
-            tCtx.shadowColor = p.color;
-            tCtx.shadowBlur = 8;
-            tCtx.beginPath();
-            tCtx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-            tCtx.fill();
-            tCtx.restore();
-          }
-        }
-      }
-
-      window.addEventListener('pointermove', (e) => {
-        if (flightState === 'idle') return;
-        const now = performance.now();
-        if (now - lastSpawnTime > 16) {
-          spawnTrailParticle(e.clientX, e.clientY);
-          if (Math.random() < 0.5) spawnTrailParticle(e.clientX, e.clientY);
-          lastSpawnTime = now;
-        }
-      }, { passive: true });
-
-      window.addEventListener('touchmove', (e) => {
-        if (flightState === 'idle' || !e.touches.length) return;
-        const now = performance.now();
-        if (now - lastSpawnTime > 16) {
-          const t = e.touches[0];
-          spawnTrailParticle(t.clientX, t.clientY);
-          spawnTrailParticle(t.clientX, t.clientY);
-          lastSpawnTime = now;
-        }
-      }, { passive: true });
-
-      if (typeof THREE === 'undefined') return;
-
-      const PHOTO_URL = "photo.jpg";
-
-      const phrases = [
-        "Обичам те", "Обичам те, Мими", "Много те обичам", "Обичам те безкрайно", "Ти си моето всичко",
-        "I love you", "Я тебя люблю", "Я тебе кохаю", "Я цябе кахаю", "Обичам те",
-        "Te amo", "Je t'aime", "Ti amo", "Ich liebe dich", "Eu te amo",
-        "Ik hou van jou", "Jag älskar dig", "Jeg elsker dig", "Jeg elsker deg", "Minä rakastan sinua",
-        "Kocham Cię", "Miluji tě", "Ľúbim ťa", "Szeretlek", "Te iubesc",
-        "Volim te", "Ljubim te", "Σ' αγαπώ", "Seni seviyorum", "أحبك",
-        "אני אוהב אותך", "愛してる", "사랑해", "我爱你", "我愛你",
-        "मैं तुमसे प्यार करता हूँ", "আমি তোমায় ভালোবাসি", "ਮੈਂ ਤੈਨੂੰ ਪਿਆਰ ਕਰਦਾ ਹਾਂ", "मी तुझ्यावर प्रेम करतो",
-        "நான் உன்னை காதலிக்கிறேன்", "నేను నిన్ను ప్రేమిస్తున్నాను", "ನಾನು ನಿನ್ನನ್ನು ಪ್ರೀತಿಸುತ್ತೇನೆ", "ഞാൻ നിന്നെ സ്നേഹിക്കുന്നു",
-        "මම ඔයාට ආදරෙයි", "म तिमीलाई माया गर्छु", "Aku cinta kamu", "Saya cintakan awak", "Mahal kita",
-        "Anh yêu em", "ฉันรักคุณ", "ខ្ញុំស្រឡាញ់អ្នក", "ຂ້ອຍຮັກເຈົ້າ", "ချစ်တယ်",
-        "Мен сені сүйемін", "Мен сени сүйөм", "Men seni sevaman", "Men seni söýýärin", "Ман туро дӯст медорам",
-        "Mən səni sevirəm", "მიყვარხარ", "Ես քեզ սիրում եմ", "دوستت دارم", "زه تا سره مینه لرم",
-        "Ez ji te hez dikim", "Би чамд хайртай", "Ma armastan sind", "Es tevi mīlu", "Aš tave myliu",
-        "Të dua", "Те сакам", "Inħobbok", "Ég elska tig", "Tá grá agam duit",
-        "Rwy'n dy garu di", "Tha gaol agam ort", "Ngiyakuthanda", "Ndiyakuthanda", "Ke a go rata",
-        "Ndikukonda", "Ndinokuda", "Nakupenda", "Waan ku jeclahay", "Ina son ku",
-        "Mo nifẹ rẹ", "A hụrụ m gị n'anya", "Mi amas vin", "Amo te", "Ti voglio bene",
-        "T'estimo", "Maite zaitut", "Eu te quero", "Aloha wau iā ʻoe", "Aroha ahau ki a koe",
-        "Ou te alofa ia te oe", "Ofa atu", "Kuv hlub koj", "Ndagukunda", "Обичам те завинаги"
-      ];
-
-      const scene = new THREE.Scene();
-      scene.fog = new THREE.FogExp2(0x030108, 0.0042);
-
-      const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1200);
-      const START_CAM_POS = new THREE.Vector3(0, 6, 360);
-      const END_CAM_POS = new THREE.Vector3(0, 16, 48);
-      camera.position.copy(START_CAM_POS);
-      camera.lookAt(0, 0, 0);
-
-      const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
-      renderer.domElement.id = 'webgl-canvas';
-      renderer.setSize(window.innerWidth, window.innerHeight);
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-      document.body.appendChild(renderer.domElement);
-
-      const controls = new THREE.OrbitControls(camera, renderer.domElement);
-      controls.enableDamping = true;
-      controls.dampingFactor = 0.05;
-      controls.minDistance = 8;
-      controls.maxDistance = 110;
-      controls.autoRotate = true;
-      controls.autoRotateSpeed = 0.65;
-      controls.enabled = false;
-
-      function createHeartTexture() {
-        const c = document.createElement('canvas');
-        c.width = 64;
-        c.height = 64;
-        const ctx = c.getContext('2d');
-        ctx.fillStyle = '#ffffff';
-        ctx.shadowColor = '#ff4da6';
-        ctx.shadowBlur = 12;
-        ctx.beginPath();
-        ctx.moveTo(32, 52);
-        ctx.bezierCurveTo(32, 49, 10, 35, 10, 21);
-        ctx.bezierCurveTo(10, 12, 18, 8, 25, 12);
-        ctx.bezierCurveTo(29, 14, 32, 18, 32, 20);
-        ctx.bezierCurveTo(32, 18, 35, 14, 39, 12);
-        ctx.bezierCurveTo(46, 8, 54, 12, 54, 21);
-        ctx.bezierCurveTo(54, 35, 32, 49, 32, 52);
-        ctx.fill();
-        return new THREE.CanvasTexture(c);
-      }
-      const heartTex = createHeartTexture();
-
-      // =========================================================
-      // КОСМИЧЕСКИ ТУНЕЛ
-      // =========================================================
-      const tunnelGroup = new THREE.Group();
-      scene.add(tunnelGroup);
-
-      const tunnelStarCount = 3200;
-      const tunnelStarGeo = new THREE.BufferGeometry();
-      const tunnelStarPos = new Float32Array(tunnelStarCount * 3);
-      const tunnelStarCol = new Float32Array(tunnelStarCount * 3);
-
-      const tCol1 = new THREE.Color(0xff2a85);
-      const tCol2 = new THREE.Color(0xb566ff);
-      const tCol3 = new THREE.Color(0xffffff);
-
-      for (let i = 0; i < tunnelStarCount; i++) {
-        const angle = Math.random() * Math.PI * 2;
-        const radius = 6.5 + Math.pow(Math.random(), 0.7) * 26;
-        const z = 45 + Math.random() * 340;
-
-        tunnelStarPos[i * 3] = Math.cos(angle) * radius;
-        tunnelStarPos[i * 3 + 1] = Math.sin(angle) * radius + 4;
-        tunnelStarPos[i * 3 + 2] = z;
-
-        const rnd = Math.random();
-        const c = rnd < 0.45 ? tCol1 : (rnd < 0.75 ? tCol2 : tCol3);
-        tunnelStarCol[i * 3] = c.r;
-        tunnelStarCol[i * 3 + 1] = c.g;
-        tunnelStarCol[i * 3 + 2] = c.b;
-      }
-
-      tunnelStarGeo.setAttribute('position', new THREE.BufferAttribute(tunnelStarPos, 3));
-      tunnelStarGeo.setAttribute('color', new THREE.BufferAttribute(tunnelStarCol, 3));
-
-      const tunnelStarMat = new THREE.PointsMaterial({
-        size: 0.65,
-        vertexColors: true,
-        transparent: true,
-        opacity: 0.9,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false
+      window.addEventListener('resize', function() {
+        w = canvas.width = window.innerWidth;
+        h = canvas.height = window.innerHeight;
       });
 
-      tunnelGroup.add(new THREE.Points(tunnelStarGeo, tunnelStarMat));
+      function draw() {
+        ctx.clearRect(0, 0, w, h);
+        for (let i = 0; i < stars.length; i++) {
+          const s = stars[i];
+          s.y -= s.vy;
+          if (s.y < 0) s.y = h;
+          s.alpha += s.dAlpha;
+          if (s.alpha > 1 || s.alpha < 0.15) s.dAlpha = -s.dAlpha;
 
-      const tunnelHeartCount = 450;
-      const tunnelHeartGeo = new THREE.BufferGeometry();
-      const tunnelHeartPos = new Float32Array(tunnelHeartCount * 3);
-      const tunnelHeartCol = new Float32Array(tunnelHeartCount * 3);
-
-      for (let i = 0; i < tunnelHeartCount; i++) {
-        const angle = Math.random() * Math.PI * 2;
-        const radius = 5.5 + Math.random() * 18;
-        const z = 50 + Math.random() * 330;
-
-        tunnelHeartPos[i * 3] = Math.cos(angle) * radius;
-        tunnelHeartPos[i * 3 + 1] = Math.sin(angle) * radius + 4;
-        tunnelHeartPos[i * 3 + 2] = z;
-
-        const c = Math.random() < 0.6 ? tCol1 : new THREE.Color(0xff99cc);
-        tunnelHeartCol[i * 3] = c.r;
-        tunnelHeartCol[i * 3 + 1] = c.g;
-        tunnelHeartCol[i * 3 + 2] = c.b;
-      }
-
-      tunnelHeartGeo.setAttribute('position', new THREE.BufferAttribute(tunnelHeartPos, 3));
-      tunnelHeartGeo.setAttribute('color', new THREE.BufferAttribute(tunnelHeartCol, 3));
-
-      const tunnelHeartMat = new THREE.PointsMaterial({
-        size: 1.5,
-        map: heartTex,
-        vertexColors: true,
-        transparent: true,
-        opacity: 0.9,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false
-      });
-
-      tunnelGroup.add(new THREE.Points(tunnelHeartGeo, tunnelHeartMat));
-
-      const tunnelRings = [];
-      for (let i = 0; i < 16; i++) {
-        const ringGeo = new THREE.RingGeometry(8.5, 8.85, 64);
-        const ringMat = new THREE.MeshBasicMaterial({
-          color: i % 2 === 0 ? 0xff2a85 : 0x9d4edd,
-          side: THREE.DoubleSide,
-          transparent: true,
-          opacity: 0.35,
-          blending: THREE.AdditiveBlending,
-          depthWrite: false
-        });
-        const ring = new THREE.Mesh(ringGeo, ringMat);
-        ring.position.set(0, 4, 55 + i * 20);
-        tunnelGroup.add(ring);
-        tunnelRings.push(ring);
-      }
-
-      // =========================================================
-      // ГЛАВНА ГАЛАКТИКА
-      // =========================================================
-      const worldContainer = new THREE.Group();
-      worldContainer.scale.set(0.001, 0.001, 0.001);
-      scene.add(worldContainer);
-
-      const galaxyGroup = new THREE.Group();
-      worldContainer.add(galaxyGroup);
-
-      // 1. 3D сърце в центъра
-      const heartParticleCount = 3400;
-      const heartGeo = new THREE.BufferGeometry();
-      const heartPositions = new Float32Array(heartParticleCount * 3);
-      const heartColors = new Float32Array(heartParticleCount * 3);
-
-      const cInner = new THREE.Color(0xff1464);
-      const cOuter = new THREE.Color(0xff99cc);
-
-      for (let i = 0; i < heartParticleCount; i++) {
-        const t = Math.random() * Math.PI * 2;
-        let x = 16 * Math.pow(Math.sin(t), 3);
-        let y = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t);
-        const r = Math.pow(Math.random(), 0.45);
-        const zSpread = (1 - r * 0.7) * 5.5 * (Math.random() * 2 - 1);
-        const scale = 0.25 * r;
-
-        heartPositions[i * 3] = x * scale + (Math.random() - 0.5) * 0.3;
-        heartPositions[i * 3 + 1] = (y * scale) + 1.2 + (Math.random() - 0.5) * 0.3;
-        heartPositions[i * 3 + 2] = zSpread * r;
-
-        const mixed = cInner.clone().lerp(cOuter, Math.random() * 0.8);
-        heartColors[i * 3] = mixed.r;
-        heartColors[i * 3 + 1] = mixed.g;
-        heartColors[i * 3 + 2] = mixed.b;
-      }
-
-      heartGeo.setAttribute('position', new THREE.BufferAttribute(heartPositions, 3));
-      heartGeo.setAttribute('color', new THREE.BufferAttribute(heartColors, 3));
-
-      const heartMat = new THREE.PointsMaterial({
-        size: 0.22,
-        vertexColors: true,
-        transparent: true,
-        opacity: 0.88,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false
-      });
-
-      const heartMesh = new THREE.Points(heartGeo, heartMat);
-      galaxyGroup.add(heartMesh);
-
-      // 1.5. Име МИМИ в центъра
-      function createCenterNameSprite(name) {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        canvas.width = 512;
-        canvas.height = 256;
-
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.font = '800 88px "Segoe UI", Arial, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-
-        ctx.shadowColor = '#ff0055';
-        ctx.shadowBlur = 24;
-        ctx.lineWidth = 6;
-        ctx.strokeStyle = 'rgba(80, 0, 30, 0.85)';
-        ctx.strokeText(name, canvas.width / 2, canvas.height / 2);
-
-        ctx.fillStyle = '#ffffff';
-        ctx.fillText(name, canvas.width / 2, canvas.height / 2);
-
-        const texture = new THREE.CanvasTexture(canvas);
-        texture.minFilter = THREE.LinearFilter;
-
-        const material = new THREE.SpriteMaterial({
-          map: texture,
-          transparent: true,
-          opacity: 1,
-          depthTest: false,
-          depthWrite: false
-        });
-
-        const sprite = new THREE.Sprite(material);
-        sprite.scale.set(5.4, 2.7, 1);
-        sprite.position.set(0, 0.8, 0);
-        sprite.renderOrder = 12;
-        return sprite;
-      }
-
-      const nameSprite = createCenterNameSprite("МИМИ");
-      galaxyGroup.add(nameSprite);
-
-      // 1.6. Снимка в неонова рамка
-      function createPhotoSprite(url) {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        canvas.width = 512;
-        canvas.height = 512;
-
-        const drawFrame = (img) => {
-          ctx.clearRect(0, 0, 512, 512);
-          const cx = 256, cy = 240, radius = 195;
-
-          ctx.save();
           ctx.beginPath();
-          ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-          ctx.shadowColor = '#ff1e7a';
-          ctx.shadowBlur = 35;
-          ctx.fillStyle = '#240515';
+          ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(255, 240, 250, ' + s.alpha.toFixed(2) + ')';
           ctx.fill();
-          ctx.restore();
+        }
+        requestAnimationFrame(draw);
+      }
+      draw();
+    })();
 
-          ctx.save();
-          ctx.beginPath();
-          ctx.arc(cx, cy, radius - 6, 0, Math.PI * 2);
-          ctx.closePath();
-          ctx.clip();
+    // 2. Старт и музика
+    (function() {
+      const overlay = document.getElementById('start-overlay');
+      const startBtn = document.getElementById('start-btn');
+      const audio = document.getElementById('bg-audio');
+      const musicBtn = document.getElementById('music-toggle');
+      let playing = false;
 
-          if (img) {
-            const aspect = img.width / img.height;
-            let dw = radius * 2, dh = radius * 2;
-            if (aspect > 1) {
-              dw = dh * aspect;
-            } else {
-              dh = dw / aspect;
-            }
-            ctx.drawImage(img, cx - dw / 2, cy - dh / 2, dw, dh);
-          } else {
-            const grad = ctx.createRadialGradient(cx, cy, 20, cx, cy, radius);
-            grad.addColorStop(0, '#ff4d94');
-            grad.addColorStop(1, '#4a0424');
-            ctx.fillStyle = grad;
-            ctx.fillRect(0, 0, 512, 512);
-            ctx.fillStyle = '#fff';
-            ctx.font = 'bold 42px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText('❤️ МИМИ ❤️', cx, cy + 12);
-          }
-          ctx.restore();
-
-          ctx.save();
-          ctx.beginPath();
-          ctx.arc(cx, cy, radius - 3, 0, Math.PI * 2);
-          ctx.lineWidth = 8;
-          ctx.strokeStyle = '#ff66b2';
-          ctx.shadowColor = '#ff0066';
-          ctx.shadowBlur = 20;
-          ctx.stroke();
-          ctx.restore();
-
-          ctx.save();
-          ctx.font = '800 44px "Segoe UI", Arial, sans-serif';
-          ctx.textAlign = 'center';
-          ctx.shadowColor = '#ff0055';
-          ctx.shadowBlur = 16;
-          ctx.lineWidth = 5;
-          ctx.strokeStyle = '#1a000d';
-          ctx.strokeText('МИМИ ❤️', cx, 476);
-          ctx.fillStyle = '#ffffff';
-          ctx.fillText('МИМИ ❤️', cx, 476);
-          ctx.restore();
-        };
-
-        drawFrame(null);
-        const texture = new THREE.CanvasTexture(canvas);
-        texture.minFilter = THREE.LinearFilter;
-
-        const img = new Image();
-        img.onload = () => {
-          drawFrame(img);
-          texture.needsUpdate = true;
-        };
-        img.src = url;
-
-        const material = new THREE.SpriteMaterial({
-          map: texture,
-          transparent: true,
-          opacity: 0,
-          depthTest: false,
-          depthWrite: false
+      startBtn.addEventListener('click', function() {
+        overlay.classList.add('hidden');
+        audio.play().then(function() {
+          playing = true;
+          musicBtn.textContent = '🔊 Музика';
+        }).catch(function() {
+          musicBtn.textContent = '🔇 Музика';
         });
-
-        const sprite = new THREE.Sprite(material);
-        sprite.scale.set(0.01, 0.01, 1);
-        sprite.position.set(0, 1.0, 0);
-        sprite.renderOrder = 15;
-        return sprite;
-      }
-
-      const photoSprite = createPhotoSprite(PHOTO_URL);
-      galaxyGroup.add(photoSprite);
-
-      // =========================================================
-      // 3D САЛЮТ ПРИ НАТИСКАНЕ ВЪРХУ „МИМИ“
-      // =========================================================
-      const fireworksList = [];
-
-      function launchFireworkBurst() {
-        const particleCount = 140;
-        const geo = new THREE.BufferGeometry();
-        const positions = new Float32Array(particleCount * 3);
-        const colors = new Float32Array(particleCount * 3);
-        const velocities = [];
-
-        const palette = [
-          new THREE.Color(0xff1e7a),
-          new THREE.Color(0xff85c2),
-          new THREE.Color(0xffd700),
-          new THREE.Color(0xd966ff),
-          new THREE.Color(0xffffff)
-        ];
-
-        for (let i = 0; i < particleCount; i++) {
-          positions[i * 3] = 0;
-          positions[i * 3 + 1] = 1.0;
-          positions[i * 3 + 2] = 0;
-
-          // Сферично разпръскване с лека форма на сърце/експлозия
-          const u = Math.random();
-          const v = Math.random();
-          const theta = u * 2.0 * Math.PI;
-          const phi = Math.acos(2.0 * v - 1.0);
-          const speed = 0.25 + Math.random() * 0.45;
-
-          velocities.push({
-            vx: speed * Math.sin(phi) * Math.cos(theta),
-            vy: speed * Math.cos(phi) + 0.08,
-            vz: speed * Math.sin(phi) * Math.sin(theta)
-          });
-
-          const col = palette[Math.floor(Math.random() * palette.length)];
-          colors[i * 3] = col.r;
-          colors[i * 3 + 1] = col.g;
-          colors[i * 3 + 2] = col.b;
-        }
-
-        geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-        geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-
-        const mat = new THREE.PointsMaterial({
-          size: 1.35,
-          map: heartTex,
-          vertexColors: true,
-          transparent: true,
-          opacity: 1,
-          blending: THREE.AdditiveBlending,
-          depthWrite: false
-        });
-
-        const points = new THREE.Points(geo, mat);
-        points.renderOrder = 20;
-        galaxyGroup.add(points);
-
-        fireworksList.push({
-          points: points,
-          geo: geo,
-          mat: mat,
-          velocities: velocities,
-          life: 1.0
-        });
-      }
-
-      function updateFireworks() {
-        for (let i = fireworksList.length - 1; i >= 0; i--) {
-          const fw = fireworksList[i];
-          fw.life -= 0.014;
-          if (fw.life <= 0) {
-            galaxyGroup.remove(fw.points);
-            fw.geo.dispose();
-            fw.mat.dispose();
-            fireworksList.splice(i, 1);
-            continue;
-          }
-
-          const posAttr = fw.geo.attributes.position;
-          for (let j = 0; j < fw.velocities.length; j++) {
-            const vel = fw.velocities[j];
-            vel.vx *= 0.965;
-            vel.vy = vel.vy * 0.965 - 0.0045; // лека гравитация
-            vel.vz *= 0.965;
-
-            posAttr.setXYZ(
-              j,
-              posAttr.getX(j) + vel.vx,
-              posAttr.getY(j) + vel.vy,
-              posAttr.getZ(j) + vel.vz
-            );
-          }
-          posAttr.needsUpdate = true;
-          fw.mat.opacity = Math.max(0, fw.life);
-          fw.mat.size = 1.35 * (0.6 + fw.life * 0.6);
-        }
-      }
-
-      let showPhotoMode = false;
-      let transitionProgress = 0;
-
-      const raycaster = new THREE.Raycaster();
-      const pointer = new THREE.Vector2();
-      let downPos = { x: 0, y: 0 };
-
-      renderer.domElement.addEventListener('pointerdown', (e) => {
-        downPos = { x: e.clientX, y: e.clientY };
       });
 
-      renderer.domElement.addEventListener('pointerup', (e) => {
-        if (flightState !== 'galaxy') return;
-        const dist = Math.hypot(e.clientX - downPos.x, e.clientY - downPos.y);
-        if (dist > 10) return;
-
-        const rect = renderer.domElement.getBoundingClientRect();
-        pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-        pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-
-        raycaster.setFromCamera(pointer, camera);
-
-        const hitTargets = showPhotoMode ? [photoSprite, nameSprite] : [nameSprite];
-        const intersects = raycaster.intersectObjects(hitTargets);
-
-        const centerWorld = new THREE.Vector3(0, 1.0, 0);
-        galaxyGroup.localToWorld(centerWorld);
-        const distToRay = raycaster.ray.distanceToPoint(centerWorld);
-
-        if (intersects.length > 0 || distToRay < 3.4) {
-          showPhotoMode = !showPhotoMode;
-          launchFireworkBurst();
-          setTimeout(launchFireworkBurst, 180); // Двоен залп на салюта
-
-          hintEl.textContent = showPhotoMode 
-            ? "Натисни снимката, за да върнеш сърцето ❤️" 
-            : "Натисни върху „МИМИ“ в центъра ✨";
-          hintEl.style.opacity = '1';
+      musicBtn.addEventListener('click', function() {
+        if (playing) {
+          audio.pause();
+          playing = false;
+          musicBtn.textContent = '🔇 Музика';
+        } else {
+          audio.play().then(function() {
+            playing = true;
+            musicBtn.textContent = '🔊 Музика';
+          }).catch(function() {});
         }
       });
+    })();
 
-      // 2. Текстови спрайтове
-      function createTextSprite(text) {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        canvas.width = 512;
-        canvas.height = 128;
+    // 3. Превключване между сърце и снимка
+    (function() {
+      const wrapper = document.getElementById('heart-toggle');
+      const heart = document.getElementById('heart-svg');
+      const img = document.getElementById('couple-img');
+      let showPhoto = false;
 
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.font = '600 38px "Segoe UI", Arial, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-
-        ctx.shadowColor = '#ff2a85';
-        ctx.shadowBlur = 16;
-        ctx.fillStyle = '#ffffff';
-        ctx.fillText(text, canvas.width / 2, canvas.height / 2);
-
-        const texture = new THREE.CanvasTexture(canvas);
-        texture.minFilter = THREE.LinearFilter;
-
-        const material = new THREE.SpriteMaterial({
-          map: texture,
-          transparent: true,
-          opacity: 0.92,
-          depthWrite: false
-        });
-
-        const sprite = new THREE.Sprite(material);
-        sprite.scale.set(7.2, 1.8, 1);
-        return sprite;
-      }
-
-      const arms = 4;
-      phrases.forEach((phrase, idx) => {
-        const sprite = createTextSprite(phrase);
-        const arm = idx % arms;
-        const progress = idx / phrases.length;
-        const radius = 8.5 + progress * 22;
-        const angle = (arm * (Math.PI * 2 / arms)) + progress * Math.PI * 3.8;
-        const yOffset = (Math.sin(idx * 1.7) * 3.5) * (0.4 + progress * 0.6);
-
-        sprite.position.set(
-          Math.cos(angle) * radius,
-          yOffset,
-          Math.sin(angle) * radius
-        );
-
-        galaxyGroup.add(sprite);
-      });
-
-      // 3. Звезден прах
-      const dustCount = 3800;
-      const dustGeo = new THREE.BufferGeometry();
-      const dustPos = new Float32Array(dustCount * 3);
-      const dustCol = new Float32Array(dustCount * 3);
-
-      const colPink = new THREE.Color(0xff4da6);
-      const colPurple = new THREE.Color(0x9d4edd);
-      const colWhite = new THREE.Color(0xffffff);
-
-      for (let i = 0; i < dustCount; i++) {
-        const arm = i % arms;
-        const r = 5 + Math.pow(Math.random(), 1.3) * 31;
-        const spinAngle = r * 0.22;
-        const branchAngle = (arm / arms) * Math.PI * 2;
-
-        const randomX = Math.pow(Math.random(), 3) * (Math.random() < 0.5 ? 1 : -1) * 2.5;
-        const randomY = Math.pow(Math.random(), 3) * (Math.random() < 0.5 ? 1 : -1) * 2.0;
-        const randomZ = Math.pow(Math.random(), 3) * (Math.random() < 0.5 ? 1 : -1) * 2.5;
-
-        dustPos[i * 3] = Math.cos(branchAngle + spinAngle) * r + randomX;
-        dustPos[i * 3 + 1] = randomY;
-        dustPos[i * 3 + 2] = Math.sin(branchAngle + spinAngle) * r + randomZ;
-
-        const pick = Math.random();
-        const c = pick < 0.45 ? colPink : (pick < 0.8 ? colPurple : colWhite);
-        dustCol[i * 3] = c.r;
-        dustCol[i * 3 + 1] = c.g;
-        dustCol[i * 3 + 2] = c.b;
-      }
-
-      dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPos, 3));
-      dustGeo.setAttribute('color', new THREE.BufferAttribute(dustCol, 3));
-
-      const dustMat = new THREE.PointsMaterial({
-        size: 0.16,
-        vertexColors: true,
-        transparent: true,
-        opacity: 0.72,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false
-      });
-
-      const galaxyDust = new THREE.Points(dustGeo, dustMat);
-      galaxyGroup.add(galaxyDust);
-
-      // 4. Кръгла планета от сърца около цялата галактика
-      const planetHeartCount = 950;
-      const planetRadius = 42;
-      const planetGeo = new THREE.BufferGeometry();
-      const planetPos = new Float32Array(planetHeartCount * 3);
-      const planetCol = new Float32Array(planetHeartCount * 3);
-
-      const pCol1 = new THREE.Color(0xff2a85);
-      const pCol2 = new THREE.Color(0xff85c2);
-      const pCol3 = new THREE.Color(0xd966ff);
-
-      const goldenRatio = (1 + Math.sqrt(5)) / 2;
-      for (let i = 0; i < planetHeartCount; i++) {
-        const theta = (2 * Math.PI * i) / goldenRatio;
-        const phi = Math.acos(1 - (2 * (i + 0.5)) / planetHeartCount);
-        const rJitter = planetRadius + (Math.random() - 0.5) * 1.4;
-
-        planetPos[i * 3] = rJitter * Math.sin(phi) * Math.cos(theta);
-        planetPos[i * 3 + 1] = rJitter * Math.cos(phi);
-        planetPos[i * 3 + 2] = rJitter * Math.sin(phi) * Math.sin(theta);
-
-        const rnd = Math.random();
-        const col = rnd < 0.45 ? pCol1 : (rnd < 0.8 ? pCol2 : pCol3);
-        planetCol[i * 3] = col.r;
-        planetCol[i * 3 + 1] = col.g;
-        planetCol[i * 3 + 2] = col.b;
-      }
-
-      planetGeo.setAttribute('position', new THREE.BufferAttribute(planetPos, 3));
-      planetGeo.setAttribute('color', new THREE.BufferAttribute(planetCol, 3));
-
-      const planetMat = new THREE.PointsMaterial({
-        size: 1.35,
-        map: heartTex,
-        vertexColors: true,
-        transparent: true,
-        opacity: 0.82,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false
-      });
-
-      const heartPlanet = new THREE.Points(planetGeo, planetMat);
-      worldContainer.add(heartPlanet);
-
-      // 5. Дълбок звезден фон + ПАДАЩИ ЗВЕЗДИ (МЕТЕОРИ)
-      const bgStarsCount = 2000;
-      const bgStarsGeo = new THREE.BufferGeometry();
-      const bgStarsPos = new Float32Array(bgStarsCount * 3);
-
-      for (let i = 0; i < bgStarsCount; i++) {
-        const u = Math.random();
-        const v = Math.random();
-        const theta = u * 2.0 * Math.PI;
-        const phi = Math.acos(2.0 * v - 1.0);
-        const rad = 85 + Math.random() * 140;
-
-        bgStarsPos[i * 3] = rad * Math.sin(phi) * Math.cos(theta);
-        bgStarsPos[i * 3 + 1] = rad * Math.sin(phi) * Math.sin(theta);
-        bgStarsPos[i * 3 + 2] = rad * Math.cos(phi);
-      }
-
-      bgStarsGeo.setAttribute('position', new THREE.BufferAttribute(bgStarsPos, 3));
-      const bgStarsMat = new THREE.PointsMaterial({
-        color: 0xffe6f2,
-        size: 0.35,
-        transparent: true,
-        opacity: 0.65
-      });
-      scene.add(new THREE.Points(bgStarsGeo, bgStarsMat));
-
-      // Метеори (падащи звезди на фона)
-      const shootingStars = [];
-      let nextMeteorTime = 2.0;
-
-      function spawnMeteor() {
-        const segCount = 24;
-        const geo = new THREE.BufferGeometry();
-        const positions = new Float32Array(segCount * 3);
-        const colors = new Float32Array(segCount * 3);
-
-        // Начална точка на далечна сфера на фона
-        const theta = Math.random() * Math.PI * 2;
-        const phi = 0.3 + Math.random() * 1.4;
-        const dist = 105 + Math.random() * 35;
-
-        const start = new THREE.Vector3(
-          dist * Math.sin(phi) * Math.cos(theta),
-          dist * Math.cos(phi),
-          dist * Math.sin(phi) * Math.sin(theta)
-        );
-
-        // Посока по допирателната към сферата
-        const tangent = new THREE.Vector3(-Math.sin(theta), -0.4 - Math.random() * 0.5, Math.cos(theta)).normalize();
-        const speed = 1.9 + Math.random() * 1.1;
-        const tailLen = 18 + Math.random() * 10;
-
-        const headColor = new THREE.Color(0xffffff);
-        const tailColor = new THREE.Color(Math.random() < 0.6 ? 0xff4da6 : 0xb566ff);
-
-        for (let i = 0; i < segCount; i++) {
-          const frac = i / (segCount - 1);
-          positions[i * 3] = start.x - tangent.x * tailLen * frac;
-          positions[i * 3 + 1] = start.y - tangent.y * tailLen * frac;
-          positions[i * 3 + 2] = start.z - tangent.z * tailLen * frac;
-
-          const c = headColor.clone().lerp(tailColor, frac);
-          const fade = 1 - frac;
-          colors[i * 3] = c.r * fade;
-          colors[i * 3 + 1] = c.g * fade;
-          colors[i * 3 + 2] = c.b * fade;
+      wrapper.addEventListener('click', function() {
+        showPhoto = !showPhoto;
+        if (showPhoto) {
+          heart.style.display = 'none';
+          img.style.display = 'block';
+        } else {
+          img.style.display = 'none';
+          heart.style.display = 'block';
         }
-
-        geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-        geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-
-        const mat = new THREE.LineBasicMaterial({
-          vertexColors: true,
-          transparent: true,
-          opacity: 0.95,
-          blending: THREE.AdditiveBlending
-        });
-
-        const line = new THREE.Line(geo, mat);
-        scene.add(line);
-
-        shootingStars.push({
-          line: line,
-          geo: geo,
-          mat: mat,
-          vel: tangent.multiplyScalar(speed),
-          life: 1.0
-        });
-      }
-
-      function updateMeteors(elapsed) {
-        if (flightState === 'galaxy' && elapsed > nextMeteorTime) {
-          spawnMeteor();
-          nextMeteorTime = elapsed + 1.8 + Math.random() * 2.8;
-        }
-
-        for (let i = shootingStars.length - 1; i >= 0; i--) {
-          const m = shootingStars[i];
-          m.line.position.add(m.vel);
-          m.life -= 0.016;
-          m.mat.opacity = Math.max(0, m.life);
-
-          if (m.life <= 0) {
-            scene.remove(m.line);
-            m.geo.dispose();
-            m.mat.dispose();
-            shootingStars.splice(i, 1);
-          }
-        }
-      }
-
-      galaxyGroup.rotation.z = 0.16;
-      galaxyGroup.rotation.x = 0.10;
-
-      window.addEventListener('resize', () => {
-        tWidth = trailCanvas.width = window.innerWidth;
-        tHeight = trailCanvas.height = window.innerHeight;
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
       });
+    })();
 
-      const clock = new THREE.Clock();
+    // 4. Таймер от 19.09.2026 11:59:00
+    (function() {
+      const startDate = new Date(2026, 8, 19, 11, 59, 0);
 
-      function easeInOutCubic(t) {
-        return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+      function updateLoveTimer() {
+        const now = new Date();
+        let diff = Math.floor((now - startDate) / 1000);
+        if (diff < 0) diff = 0;
+
+        const days = Math.floor(diff / 86400);
+        const hours = Math.floor((diff % 86400) / 3600);
+        const mins = Math.floor((diff % 3600) / 60);
+        const secs = diff % 60;
+
+        document.getElementById('t-days').textContent = days;
+        document.getElementById('t-hours').textContent = String(hours).padStart(2, '0');
+        document.getElementById('t-mins').textContent = String(mins).padStart(2, '0');
+        document.getElementById('t-secs').textContent = String(secs).padStart(2, '0');
       }
 
-      function animate() {
-        requestAnimationFrame(animate);
-        const elapsed = clock.getElapsedTime();
-        const now = performance.now() * 0.001;
-
-        if (flightState === 'idle') {
-          tunnelGroup.rotation.z = elapsed * 0.25;
-          camera.lookAt(0, 4, 0);
-        } else if (flightState === 'tunnel') {
-          const rawT = Math.min((now - flightStartTime) / FLIGHT_DURATION, 1);
-          const easeT = easeInOutCubic(rawT);
-
-          camera.position.lerpVectors(START_CAM_POS, END_CAM_POS, easeT);
-          const spiralAmt = Math.sin(rawT * Math.PI) * 2.2;
-          camera.position.x += Math.cos(rawT * Math.PI * 3) * spiralAmt;
-          camera.position.y += Math.sin(rawT * Math.PI * 3) * spiralAmt * 0.6;
-          camera.lookAt(0, 0, 0);
-
-          const speedBoost = Math.sin(rawT * Math.PI);
-          camera.fov = 60 + speedBoost * 28;
-          camera.updateProjectionMatrix();
-
-          tunnelGroup.rotation.z = elapsed * 1.4;
-          const fadeOut = rawT > 0.7 ? Math.max(0, 1 - (rawT - 0.7) / 0.3) : 1;
-          tunnelStarMat.opacity = 0.9 * fadeOut;
-          tunnelHeartMat.opacity = 0.9 * fadeOut;
-          tunnelRings.forEach(r => { r.material.opacity = 0.35 * fadeOut; });
-
-          if (rawT > 0.55) {
-            const gProgress = Math.min(1, (rawT - 0.55) / 0.45);
-            const gScale = 1 - Math.pow(1 - gProgress, 3);
-            worldContainer.scale.set(gScale, gScale, gScale);
-          }
-
-          if (rawT >= 1) {
-            flightState = 'galaxy';
-            camera.position.copy(END_CAM_POS);
-            camera.fov = 60;
-            camera.updateProjectionMatrix();
-            worldContainer.scale.set(1, 1, 1);
-            tunnelGroup.visible = false;
-            controls.target.set(0, 0, 0);
-            controls.enabled = true;
-            controls.update();
-            uiContainer.style.opacity = '1';
-          }
-        }
-
-        const target = showPhotoMode ? 1 : 0;
-        transitionProgress += (target - transitionProgress) * 0.08;
-
-        const heartScaleFactor = Math.max(0.001, 1 - transitionProgress);
-        const beat = 1 + Math.pow(Math.sin(elapsed * 3.2), 6) * 0.14;
-
-        heartMesh.scale.set(beat * heartScaleFactor, beat * heartScaleFactor, beat * heartScaleFactor);
-        heartMesh.rotation.y = Math.sin(elapsed * 0.8) * 0.25;
-        heartMat.opacity = 0.88 * heartScaleFactor;
-
-        nameSprite.scale.set(5.4 * beat * heartScaleFactor, 2.7 * beat * heartScaleFactor, 1);
-        nameSprite.material.opacity = heartScaleFactor;
-
-        const photoScale = 8.4 * transitionProgress;
-        photoSprite.scale.set(Math.max(0.001, photoScale), Math.max(0.001, photoScale), 1);
-        photoSprite.material.opacity = transitionProgress;
-
-        galaxyDust.rotation.y = elapsed * 0.04;
-        heartPlanet.rotation.y = -elapsed * 0.05;
-        heartPlanet.rotation.x = Math.sin(elapsed * 0.15) * 0.15;
-
-        updateFireworks();
-        updateMeteors(elapsed);
-        updateAndDrawTrail();
-
-        if (flightState === 'galaxy') {
-          controls.update();
-        }
-        renderer.render(scene, camera);
-      }
-
-      animate();
-    });
+      updateLoveTimer();
+      setInterval(updateLoveTimer, 1000);
+    })();
   </script>
 </body>
 </html>
