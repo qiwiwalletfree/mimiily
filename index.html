@@ -31,8 +31,9 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      z-index: 100;
-      transition: opacity 1s ease, visibility 1s ease;
+      z-index: 9999;
+      pointer-events: auto;
+      transition: opacity 0.9s ease, visibility 0.9s ease;
     }
     #intro-screen.hidden {
       opacity: 0;
@@ -49,6 +50,8 @@
     }
     #start-btn {
       position: relative;
+      z-index: 10000;
+      pointer-events: auto;
       padding: 18px 42px;
       font-size: 20px;
       font-weight: 700;
@@ -61,6 +64,7 @@
       box-shadow: 0 0 25px rgba(255, 30, 110, 0.6), inset 0 0 12px rgba(255, 255, 255, 0.3);
       animation: pulseStart 1.8s infinite ease-in-out;
       transition: transform 0.2s ease;
+      -webkit-tap-highlight-color: transparent;
     }
     #start-btn:active {
       transform: scale(0.94);
@@ -186,10 +190,10 @@
 
   <div id="intro-screen">
     <div class="intro-sub">Имам изненада за теб</div>
-    <button id="start-btn">Натисни ме ❤️</button>
+    <button id="start-btn" type="button" onclick="startExperience()">Натисни ме ❤️</button>
   </div>
 
-  <button id="music-btn" title="Музика">🎵</button>
+  <button id="music-btn" type="button" title="Музика" onclick="toggleMusic(event)">🎵</button>
   <div id="ui">
     <div class="hint" id="hint">Натисни върху „МИМИ“ в центъра ✨</div>
   </div>
@@ -207,15 +211,95 @@
 
   <audio id="bg-music" src="music.mp3" loop preload="auto"></audio>
 
+  <script>
+    // 1. Незабавно стартиране на бутона и таймера (независимо от 3D библиотеките)
+    var isPlaying = false;
+    var hasMusicFile = true;
+
+    (function() {
+      var audio = document.getElementById('bg-music');
+      if (audio) {
+        audio.addEventListener('error', function() {
+          hasMusicFile = false;
+          var mb = document.getElementById('music-btn');
+          if (mb) mb.style.display = 'none';
+        });
+      }
+
+      var startDate = new Date(2026, 8, 19, 11, 59, 0);
+      function updateLoveTimer() {
+        var now = new Date();
+        var diff = Math.floor((now - startDate) / 1000);
+        if (diff < 0) diff = 0;
+
+        var days = Math.floor(diff / 86400);
+        var hours = Math.floor((diff % 86400) / 3600);
+        var mins = Math.floor((diff % 3600) / 60);
+        var secs = diff % 60;
+
+        document.getElementById('t-days').textContent = days;
+        document.getElementById('t-hours').textContent = String(hours).padStart(2, '0');
+        document.getElementById('t-mins').textContent = String(mins).padStart(2, '0');
+        document.getElementById('t-secs').textContent = String(secs).padStart(2, '0');
+      }
+      updateLoveTimer();
+      setInterval(updateLoveTimer, 1000);
+    })();
+
+    function startExperience() {
+      var intro = document.getElementById('intro-screen');
+      var ui = document.getElementById('ui');
+      var timer = document.getElementById('love-timer');
+      var audio = document.getElementById('bg-music');
+      var musicBtn = document.getElementById('music-btn');
+
+      if (intro) intro.classList.add('hidden');
+      if (ui) ui.style.opacity = '1';
+      if (timer) timer.style.opacity = '1';
+
+      if (hasMusicFile && audio && musicBtn) {
+        musicBtn.style.display = 'flex';
+        var p = audio.play();
+        if (p !== undefined) {
+          p.then(function() {
+            isPlaying = true;
+            musicBtn.classList.add('playing');
+          }).catch(function() {});
+        }
+      }
+    }
+
+    function toggleMusic(e) {
+      if (e) e.stopPropagation();
+      var audio = document.getElementById('bg-music');
+      var musicBtn = document.getElementById('music-btn');
+      if (!audio || !musicBtn) return;
+
+      if (isPlaying) {
+        audio.pause();
+        isPlaying = false;
+        musicBtn.classList.remove('playing');
+        musicBtn.textContent = '🔇';
+      } else {
+        audio.play().then(function() {
+          isPlaying = true;
+          musicBtn.classList.add('playing');
+          musicBtn.textContent = '🎵';
+        }).catch(function() {});
+      }
+    }
+  </script>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 
   <script>
+    // 2. 3D Галактика
     (function() {
-      // =========================================================
-      // ИМЕ НА ФАЙЛА СЪС СНИМКАТА В СЪЩАТА ПАПКА:
+      if (typeof THREE === 'undefined') return;
+
       const PHOTO_URL = "photo.jpg";
-      // =========================================================
+      const hintEl = document.getElementById('hint');
 
       const phrases = [
         "Обичам те", "Обичам те, Мими", "Много те обичам", "Обичам те безкрайно", "Ти си моето всичко",
@@ -240,72 +324,6 @@
         "Ou te alofa ia te oe", "Ofa atu", "Kuv hlub koj", "Ndagukunda", "Обичам те завинаги"
       ];
 
-      const introScreen = document.getElementById('intro-screen');
-      const startBtn = document.getElementById('start-btn');
-      const uiContainer = document.getElementById('ui');
-      const timerContainer = document.getElementById('love-timer');
-      const hintEl = document.getElementById('hint');
-      const audio = document.getElementById('bg-music');
-      const musicBtn = document.getElementById('music-btn');
-      let isPlaying = false;
-      let hasMusicFile = true;
-
-      audio.addEventListener('error', () => {
-        hasMusicFile = false;
-        musicBtn.style.display = 'none';
-      });
-
-      startBtn.addEventListener('click', () => {
-        introScreen.classList.add('hidden');
-        uiContainer.style.opacity = '1';
-        timerContainer.style.opacity = '1';
-
-        if (hasMusicFile) {
-          musicBtn.style.display = 'flex';
-          audio.play().then(() => {
-            isPlaying = true;
-            musicBtn.classList.add('playing');
-          }).catch(() => {});
-        }
-      });
-
-      musicBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (isPlaying) {
-          audio.pause();
-          isPlaying = false;
-          musicBtn.classList.remove('playing');
-          musicBtn.textContent = '🔇';
-        } else {
-          audio.play().then(() => {
-            isPlaying = true;
-            musicBtn.classList.add('playing');
-            musicBtn.textContent = '🎵';
-          }).catch(() => {});
-        }
-      });
-
-      // Таймер от 19.09.2026 11:59:00
-      const startDate = new Date(2026, 8, 19, 11, 59, 0);
-      function updateLoveTimer() {
-        const now = new Date();
-        let diff = Math.floor((now - startDate) / 1000);
-        if (diff < 0) diff = 0;
-
-        const days = Math.floor(diff / 86400);
-        const hours = Math.floor((diff % 86400) / 3600);
-        const mins = Math.floor((diff % 3600) / 60);
-        const secs = diff % 60;
-
-        document.getElementById('t-days').textContent = days;
-        document.getElementById('t-hours').textContent = String(hours).padStart(2, '0');
-        document.getElementById('t-mins').textContent = String(mins).padStart(2, '0');
-        document.getElementById('t-secs').textContent = String(secs).padStart(2, '0');
-      }
-      updateLoveTimer();
-      setInterval(updateLoveTimer, 1000);
-
-      // Сцена, камера, рендерер
       const scene = new THREE.Scene();
       scene.fog = new THREE.FogExp2(0x030108, 0.0045);
 
@@ -317,7 +335,7 @@
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
       document.body.appendChild(renderer.domElement);
 
-      const controls = new OrbitControls(camera, renderer.domElement);
+      const controls = new THREE.OrbitControls(camera, renderer.domElement);
       controls.enableDamping = true;
       controls.dampingFactor = 0.05;
       controls.minDistance = 8;
@@ -328,7 +346,7 @@
       const galaxyGroup = new THREE.Group();
       scene.add(galaxyGroup);
 
-      // 1. 3D сърце от светещи частици в центъра
+      // 3D сърце от частици
       const heartParticleCount = 3400;
       const heartGeo = new THREE.BufferGeometry();
       const heartPositions = new Float32Array(heartParticleCount * 3);
@@ -341,11 +359,10 @@
         const t = Math.random() * Math.PI * 2;
         let x = 16 * Math.pow(Math.sin(t), 3);
         let y = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t);
-        
         const r = Math.pow(Math.random(), 0.45);
         const zSpread = (1 - r * 0.7) * 5.5 * (Math.random() * 2 - 1);
-        
         const scale = 0.25 * r;
+
         heartPositions[i * 3] = x * scale + (Math.random() - 0.5) * 0.3;
         heartPositions[i * 3 + 1] = (y * scale) + 1.2 + (Math.random() - 0.5) * 0.3;
         heartPositions[i * 3 + 2] = zSpread * r;
@@ -371,7 +388,7 @@
       const heartMesh = new THREE.Points(heartGeo, heartMat);
       galaxyGroup.add(heartMesh);
 
-      // 1.5. Кликаемо име МИМИ в центъра
+      // Надпис МИМИ в центъра
       function createCenterNameSprite(name) {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
@@ -382,13 +399,11 @@
         ctx.font = '800 88px "Segoe UI", Arial, sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-
         ctx.shadowColor = '#ff0055';
         ctx.shadowBlur = 24;
         ctx.lineWidth = 6;
         ctx.strokeStyle = 'rgba(80, 0, 30, 0.85)';
         ctx.strokeText(name, canvas.width / 2, canvas.height / 2);
-
         ctx.fillStyle = '#ffffff';
         ctx.fillText(name, canvas.width / 2, canvas.height / 2);
 
@@ -413,7 +428,7 @@
       const nameSprite = createCenterNameSprite("МИМИ");
       galaxyGroup.add(nameSprite);
 
-      // 1.6. Кръгла снимка с неонова рамка
+      // Кръгла снимка
       function createPhotoSprite(url) {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
@@ -442,11 +457,8 @@
           if (img) {
             const aspect = img.width / img.height;
             let dw = radius * 2, dh = radius * 2;
-            if (aspect > 1) {
-              dw = dh * aspect;
-            } else {
-              dh = dw / aspect;
-            }
+            if (aspect > 1) dw = dh * aspect;
+            else dh = dw / aspect;
             ctx.drawImage(img, cx - dw / 2, cy - dh / 2, dw, dh);
           } else {
             const grad = ctx.createRadialGradient(cx, cy, 20, cx, cy, radius);
@@ -514,7 +526,6 @@
       const photoSprite = createPhotoSprite(PHOTO_URL);
       galaxyGroup.add(photoSprite);
 
-      // Логика за превключване Сърце <-> Снимка при клик
       let showPhotoMode = false;
       let transitionProgress = 0;
 
@@ -552,7 +563,6 @@
         }
       });
 
-      // 2. Текстови спрайтове в галактиката
       function createTextSprite(text) {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
@@ -563,7 +573,6 @@
         ctx.font = '600 38px "Segoe UI", Arial, sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-
         ctx.shadowColor = '#ff2a85';
         ctx.shadowBlur = 16;
         ctx.fillStyle = '#ffffff';
@@ -598,11 +607,9 @@
           yOffset,
           Math.sin(angle) * radius
         );
-
         galaxyGroup.add(sprite);
       });
 
-      // 3. Звезден прах на галактиката
       const dustCount = 3800;
       const dustGeo = new THREE.BufferGeometry();
       const dustPos = new Float32Array(dustCount * 3);
@@ -648,7 +655,6 @@
       const dustMesh = new THREE.Points(dustGeo, dustMat);
       galaxyGroup.add(dustMesh);
 
-      // 4. Фонови звезди
       const bgStarCount = 1400;
       const bgGeo = new THREE.BufferGeometry();
       const bgPos = new Float32Array(bgStarCount * 3);
@@ -673,22 +679,18 @@
         requestAnimationFrame(animate);
         const elapsed = clock.getElapsedTime();
 
-        // Плавна анимация на прехода Сърце <-> Снимка
         const target = showPhotoMode ? 1 : 0;
         transitionProgress += (target - transitionProgress) * 0.08;
 
-        // Пулсация на 3D сърцето
         const beat = 1 + Math.sin(elapsed * 3.5) * 0.055;
         const heartScale = beat * (1 - transitionProgress * 0.75);
         heartMesh.scale.set(heartScale, heartScale, heartScale);
         heartMat.opacity = 0.88 * (1 - transitionProgress * 0.85);
 
-        // Надпис МИМИ
         const nameScale = (1 - transitionProgress);
         nameSprite.scale.set(5.4 * nameScale, 2.7 * nameScale, 1);
         nameSprite.material.opacity = 1 - transitionProgress;
 
-        // Снимка
         const pScale = 7.4 * transitionProgress;
         photoSprite.scale.set(Math.max(0.01, pScale), Math.max(0.01, pScale), 1);
         photoSprite.material.opacity = transitionProgress;
