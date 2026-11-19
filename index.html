@@ -15,11 +15,19 @@
       user-select: none;
       -webkit-user-select: none;
     }
-    canvas {
+    #webgl-canvas {
       display: block;
       width: 100%;
       height: 100%;
       touch-action: none;
+    }
+    #trail-canvas {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 15;
     }
 
     #intro-screen {
@@ -135,6 +143,8 @@
     <button id="start-btn" type="button">Натисни ме ❤️</button>
   </div>
 
+  <canvas id="trail-canvas"></canvas>
+
   <button id="music-btn" type="button" title="Музика">🎵</button>
   <div id="ui">
     <div class="hint" id="hint">Натисни върху „МИМИ“ в центъра ✨</div>
@@ -155,10 +165,9 @@
       let isPlaying = false;
       let hasMusicFile = true;
 
-      // Състояния на полета: 'idle' -> 'tunnel' -> 'galaxy'
-      let flightState = 'idle';
+      let flightState = 'idle'; // 'idle' -> 'tunnel' -> 'galaxy'
       let flightStartTime = 0;
-      const FLIGHT_DURATION = 4.2; // Продължителност на полета през тунела в секунди
+      const FLIGHT_DURATION = 4.2;
 
       audio.addEventListener('error', () => {
         hasMusicFile = false;
@@ -202,6 +211,100 @@
         }
       });
 
+      // =========================================================
+      // 2D СВЕТЛИННА ДИРЯ ОТ СЪРЧИЦА И ИСКРИ ЗАД ПРЪСТА
+      // =========================================================
+      const trailCanvas = document.getElementById('trail-canvas');
+      const tCtx = trailCanvas.getContext('2d');
+      let tWidth = trailCanvas.width = window.innerWidth;
+      let tHeight = trailCanvas.height = window.innerHeight;
+      const trailParticles = [];
+      let lastSpawnTime = 0;
+
+      function spawnTrailParticle(x, y) {
+        const colors = ['#ff2a85', '#ff66b2', '#ffd1e8', '#d966ff', '#ffe066'];
+        const isHeart = Math.random() < 0.68;
+        trailParticles.push({
+          x: x + (Math.random() - 0.5) * 8,
+          y: y + (Math.random() - 0.5) * 8,
+          vx: (Math.random() - 0.5) * 1.4,
+          vy: -0.5 - Math.random() * 1.2,
+          size: isHeart ? (7 + Math.random() * 7) : (2 + Math.random() * 3),
+          alpha: 1,
+          decay: 0.018 + Math.random() * 0.015,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          isHeart: isHeart,
+          rot: (Math.random() - 0.5) * 0.6
+        });
+      }
+
+      function drawMiniHeart(ctx, x, y, size, color, alpha, rot) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(rot);
+        ctx.globalAlpha = Math.max(0, alpha);
+        ctx.fillStyle = color;
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 10;
+        const s = size * 0.06;
+        ctx.beginPath();
+        ctx.moveTo(0, 6 * s);
+        ctx.bezierCurveTo(0, 4.5 * s, -8 * s, -1.5 * s, -8 * s, -6 * s);
+        ctx.bezierCurveTo(-8 * s, -10 * s, -4 * s, -12 * s, 0, -8 * s);
+        ctx.bezierCurveTo(4 * s, -12 * s, 8 * s, -10 * s, 8 * s, -6 * s);
+        ctx.bezierCurveTo(8 * s, -1.5 * s, 0, 4.5 * s, 0, 6 * s);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      function updateAndDrawTrail() {
+        tCtx.clearRect(0, 0, tWidth, tHeight);
+        for (let i = trailParticles.length - 1; i >= 0; i--) {
+          const p = trailParticles[i];
+          p.x += p.vx;
+          p.y += p.vy;
+          p.alpha -= p.decay;
+          if (p.alpha <= 0) {
+            trailParticles.splice(i, 1);
+            continue;
+          }
+          if (p.isHeart) {
+            drawMiniHeart(tCtx, p.x, p.y, p.size, p.color, p.alpha, p.rot);
+          } else {
+            tCtx.save();
+            tCtx.globalAlpha = Math.max(0, p.alpha);
+            tCtx.fillStyle = p.color;
+            tCtx.shadowColor = p.color;
+            tCtx.shadowBlur = 8;
+            tCtx.beginPath();
+            tCtx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            tCtx.fill();
+            tCtx.restore();
+          }
+        }
+      }
+
+      window.addEventListener('pointermove', (e) => {
+        if (flightState === 'idle') return;
+        const now = performance.now();
+        if (now - lastSpawnTime > 16) {
+          spawnTrailParticle(e.clientX, e.clientY);
+          if (Math.random() < 0.5) spawnTrailParticle(e.clientX, e.clientY);
+          lastSpawnTime = now;
+        }
+      }, { passive: true });
+
+      window.addEventListener('touchmove', (e) => {
+        if (flightState === 'idle' || !e.touches.length) return;
+        const now = performance.now();
+        if (now - lastSpawnTime > 16) {
+          const t = e.touches[0];
+          spawnTrailParticle(t.clientX, t.clientY);
+          spawnTrailParticle(t.clientX, t.clientY);
+          lastSpawnTime = now;
+        }
+      }, { passive: true });
+
       if (typeof THREE === 'undefined') return;
 
       const PHOTO_URL = "photo.jpg";
@@ -233,13 +336,13 @@
       scene.fog = new THREE.FogExp2(0x030108, 0.0042);
 
       const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1200);
-      // Начална позиция на камерата далеч в тунела
       const START_CAM_POS = new THREE.Vector3(0, 6, 360);
       const END_CAM_POS = new THREE.Vector3(0, 16, 48);
       camera.position.copy(START_CAM_POS);
       camera.lookAt(0, 0, 0);
 
       const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+      renderer.domElement.id = 'webgl-canvas';
       renderer.setSize(window.innerWidth, window.innerHeight);
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
       document.body.appendChild(renderer.domElement);
@@ -251,9 +354,8 @@
       controls.maxDistance = 110;
       controls.autoRotate = true;
       controls.autoRotateSpeed = 0.65;
-      controls.enabled = false; // Активира се след пристигането в галактиката
+      controls.enabled = false;
 
-      // Текстура на сърчице за тунела и планетата
       function createHeartTexture() {
         const c = document.createElement('canvas');
         c.width = 64;
@@ -276,12 +378,11 @@
       const heartTex = createHeartTexture();
 
       // =========================================================
-      // КОСМИЧЕСКИ ТУНЕЛ ОТ ЗВЕЗДИ И СЪРЧИЦА
+      // КОСМИЧЕСКИ ТУНЕЛ
       // =========================================================
       const tunnelGroup = new THREE.Group();
       scene.add(tunnelGroup);
 
-      // 1) Звездни стени на тунела
       const tunnelStarCount = 3200;
       const tunnelStarGeo = new THREE.BufferGeometry();
       const tunnelStarPos = new Float32Array(tunnelStarCount * 3);
@@ -294,7 +395,7 @@
       for (let i = 0; i < tunnelStarCount; i++) {
         const angle = Math.random() * Math.PI * 2;
         const radius = 6.5 + Math.pow(Math.random(), 0.7) * 26;
-        const z = 45 + Math.random() * 340; // Разположени по целия път от Z=45 до Z=385
+        const z = 45 + Math.random() * 340;
 
         tunnelStarPos[i * 3] = Math.cos(angle) * radius;
         tunnelStarPos[i * 3 + 1] = Math.sin(angle) * radius + 4;
@@ -319,10 +420,8 @@
         depthWrite: false
       });
 
-      const tunnelStars = new THREE.Points(tunnelStarGeo, tunnelStarMat);
-      tunnelGroup.add(tunnelStars);
+      tunnelGroup.add(new THREE.Points(tunnelStarGeo, tunnelStarMat));
 
-      // 2) Летящи сърчица в тунела
       const tunnelHeartCount = 450;
       const tunnelHeartGeo = new THREE.BufferGeometry();
       const tunnelHeartPos = new Float32Array(tunnelHeartCount * 3);
@@ -356,10 +455,8 @@
         depthWrite: false
       });
 
-      const tunnelHearts = new THREE.Points(tunnelHeartGeo, tunnelHeartMat);
-      tunnelGroup.add(tunnelHearts);
+      tunnelGroup.add(new THREE.Points(tunnelHeartGeo, tunnelHeartMat));
 
-      // 3) Светещи неонови пръстени по дължината на тунела
       const tunnelRings = [];
       for (let i = 0; i < 16; i++) {
         const ringGeo = new THREE.RingGeometry(8.5, 8.85, 64);
@@ -378,10 +475,10 @@
       }
 
       // =========================================================
-      // ГЛАВНА ГАЛАКТИКА В КРАЯ НА ТУНЕЛА
+      // ГЛАВНА ГАЛАКТИКА
       // =========================================================
       const worldContainer = new THREE.Group();
-      worldContainer.scale.set(0.001, 0.001, 0.001); // Скрита до приближаване на камерата
+      worldContainer.scale.set(0.001, 0.001, 0.001);
       scene.add(worldContainer);
 
       const galaxyGroup = new THREE.Group();
@@ -571,6 +668,108 @@
       const photoSprite = createPhotoSprite(PHOTO_URL);
       galaxyGroup.add(photoSprite);
 
+      // =========================================================
+      // 3D САЛЮТ ПРИ НАТИСКАНЕ ВЪРХУ „МИМИ“
+      // =========================================================
+      const fireworksList = [];
+
+      function launchFireworkBurst() {
+        const particleCount = 140;
+        const geo = new THREE.BufferGeometry();
+        const positions = new Float32Array(particleCount * 3);
+        const colors = new Float32Array(particleCount * 3);
+        const velocities = [];
+
+        const palette = [
+          new THREE.Color(0xff1e7a),
+          new THREE.Color(0xff85c2),
+          new THREE.Color(0xffd700),
+          new THREE.Color(0xd966ff),
+          new THREE.Color(0xffffff)
+        ];
+
+        for (let i = 0; i < particleCount; i++) {
+          positions[i * 3] = 0;
+          positions[i * 3 + 1] = 1.0;
+          positions[i * 3 + 2] = 0;
+
+          // Сферично разпръскване с лека форма на сърце/експлозия
+          const u = Math.random();
+          const v = Math.random();
+          const theta = u * 2.0 * Math.PI;
+          const phi = Math.acos(2.0 * v - 1.0);
+          const speed = 0.25 + Math.random() * 0.45;
+
+          velocities.push({
+            vx: speed * Math.sin(phi) * Math.cos(theta),
+            vy: speed * Math.cos(phi) + 0.08,
+            vz: speed * Math.sin(phi) * Math.sin(theta)
+          });
+
+          const col = palette[Math.floor(Math.random() * palette.length)];
+          colors[i * 3] = col.r;
+          colors[i * 3 + 1] = col.g;
+          colors[i * 3 + 2] = col.b;
+        }
+
+        geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+        const mat = new THREE.PointsMaterial({
+          size: 1.35,
+          map: heartTex,
+          vertexColors: true,
+          transparent: true,
+          opacity: 1,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false
+        });
+
+        const points = new THREE.Points(geo, mat);
+        points.renderOrder = 20;
+        galaxyGroup.add(points);
+
+        fireworksList.push({
+          points: points,
+          geo: geo,
+          mat: mat,
+          velocities: velocities,
+          life: 1.0
+        });
+      }
+
+      function updateFireworks() {
+        for (let i = fireworksList.length - 1; i >= 0; i--) {
+          const fw = fireworksList[i];
+          fw.life -= 0.014;
+          if (fw.life <= 0) {
+            galaxyGroup.remove(fw.points);
+            fw.geo.dispose();
+            fw.mat.dispose();
+            fireworksList.splice(i, 1);
+            continue;
+          }
+
+          const posAttr = fw.geo.attributes.position;
+          for (let j = 0; j < fw.velocities.length; j++) {
+            const vel = fw.velocities[j];
+            vel.vx *= 0.965;
+            vel.vy = vel.vy * 0.965 - 0.0045; // лека гравитация
+            vel.vz *= 0.965;
+
+            posAttr.setXYZ(
+              j,
+              posAttr.getX(j) + vel.vx,
+              posAttr.getY(j) + vel.vy,
+              posAttr.getZ(j) + vel.vz
+            );
+          }
+          posAttr.needsUpdate = true;
+          fw.mat.opacity = Math.max(0, fw.life);
+          fw.mat.size = 1.35 * (0.6 + fw.life * 0.6);
+        }
+      }
+
       let showPhotoMode = false;
       let transitionProgress = 0;
 
@@ -602,6 +801,9 @@
 
         if (intersects.length > 0 || distToRay < 3.4) {
           showPhotoMode = !showPhotoMode;
+          launchFireworkBurst();
+          setTimeout(launchFireworkBurst, 180); // Двоен залп на салюта
+
           hintEl.textContent = showPhotoMode 
             ? "Натисни снимката, за да върнеш сърцето ❤️" 
             : "Натисни върху „МИМИ“ в центъра ✨";
@@ -749,7 +951,7 @@
       const heartPlanet = new THREE.Points(planetGeo, planetMat);
       worldContainer.add(heartPlanet);
 
-      // 5. Дълбок звезден фон
+      // 5. Дълбок звезден фон + ПАДАЩИ ЗВЕЗДИ (МЕТЕОРИ)
       const bgStarsCount = 2000;
       const bgStarsGeo = new THREE.BufferGeometry();
       const bgStarsPos = new Float32Array(bgStarsCount * 3);
@@ -775,10 +977,97 @@
       });
       scene.add(new THREE.Points(bgStarsGeo, bgStarsMat));
 
+      // Метеори (падащи звезди на фона)
+      const shootingStars = [];
+      let nextMeteorTime = 2.0;
+
+      function spawnMeteor() {
+        const segCount = 24;
+        const geo = new THREE.BufferGeometry();
+        const positions = new Float32Array(segCount * 3);
+        const colors = new Float32Array(segCount * 3);
+
+        // Начална точка на далечна сфера на фона
+        const theta = Math.random() * Math.PI * 2;
+        const phi = 0.3 + Math.random() * 1.4;
+        const dist = 105 + Math.random() * 35;
+
+        const start = new THREE.Vector3(
+          dist * Math.sin(phi) * Math.cos(theta),
+          dist * Math.cos(phi),
+          dist * Math.sin(phi) * Math.sin(theta)
+        );
+
+        // Посока по допирателната към сферата
+        const tangent = new THREE.Vector3(-Math.sin(theta), -0.4 - Math.random() * 0.5, Math.cos(theta)).normalize();
+        const speed = 1.9 + Math.random() * 1.1;
+        const tailLen = 18 + Math.random() * 10;
+
+        const headColor = new THREE.Color(0xffffff);
+        const tailColor = new THREE.Color(Math.random() < 0.6 ? 0xff4da6 : 0xb566ff);
+
+        for (let i = 0; i < segCount; i++) {
+          const frac = i / (segCount - 1);
+          positions[i * 3] = start.x - tangent.x * tailLen * frac;
+          positions[i * 3 + 1] = start.y - tangent.y * tailLen * frac;
+          positions[i * 3 + 2] = start.z - tangent.z * tailLen * frac;
+
+          const c = headColor.clone().lerp(tailColor, frac);
+          const fade = 1 - frac;
+          colors[i * 3] = c.r * fade;
+          colors[i * 3 + 1] = c.g * fade;
+          colors[i * 3 + 2] = c.b * fade;
+        }
+
+        geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+        const mat = new THREE.LineBasicMaterial({
+          vertexColors: true,
+          transparent: true,
+          opacity: 0.95,
+          blending: THREE.AdditiveBlending
+        });
+
+        const line = new THREE.Line(geo, mat);
+        scene.add(line);
+
+        shootingStars.push({
+          line: line,
+          geo: geo,
+          mat: mat,
+          vel: tangent.multiplyScalar(speed),
+          life: 1.0
+        });
+      }
+
+      function updateMeteors(elapsed) {
+        if (flightState === 'galaxy' && elapsed > nextMeteorTime) {
+          spawnMeteor();
+          nextMeteorTime = elapsed + 1.8 + Math.random() * 2.8;
+        }
+
+        for (let i = shootingStars.length - 1; i >= 0; i--) {
+          const m = shootingStars[i];
+          m.line.position.add(m.vel);
+          m.life -= 0.016;
+          m.mat.opacity = Math.max(0, m.life);
+
+          if (m.life <= 0) {
+            scene.remove(m.line);
+            m.geo.dispose();
+            m.mat.dispose();
+            shootingStars.splice(i, 1);
+          }
+        }
+      }
+
       galaxyGroup.rotation.z = 0.16;
       galaxyGroup.rotation.x = 0.10;
 
       window.addEventListener('resize', () => {
+        tWidth = trailCanvas.width = window.innerWidth;
+        tHeight = trailCanvas.height = window.innerHeight;
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -786,7 +1075,6 @@
 
       const clock = new THREE.Clock();
 
-      // Плавна функция за ускорение и забавяне (easeInOutCubic)
       function easeInOutCubic(t) {
         return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
       }
@@ -796,7 +1084,6 @@
         const elapsed = clock.getElapsedTime();
         const now = performance.now() * 0.001;
 
-        // Анимация на полета през тунела
         if (flightState === 'idle') {
           tunnelGroup.rotation.z = elapsed * 0.25;
           camera.lookAt(0, 4, 0);
@@ -804,35 +1091,28 @@
           const rawT = Math.min((now - flightStartTime) / FLIGHT_DURATION, 1);
           const easeT = easeInOutCubic(rawT);
 
-          // Движение на камерата от Z=360 към Z=48
           camera.position.lerpVectors(START_CAM_POS, END_CAM_POS, easeT);
-          
-          // Леко спираловидно поклащане на камерата в тунела
           const spiralAmt = Math.sin(rawT * Math.PI) * 2.2;
           camera.position.x += Math.cos(rawT * Math.PI * 3) * spiralAmt;
           camera.position.y += Math.sin(rawT * Math.PI * 3) * spiralAmt * 0.6;
           camera.lookAt(0, 0, 0);
 
-          // Ефект на хиперскорост (разширяване на FOV в средата на полета)
           const speedBoost = Math.sin(rawT * Math.PI);
           camera.fov = 60 + speedBoost * 28;
           camera.updateProjectionMatrix();
 
-          // Въртене на тунела и избледняване в края
           tunnelGroup.rotation.z = elapsed * 1.4;
           const fadeOut = rawT > 0.7 ? Math.max(0, 1 - (rawT - 0.7) / 0.3) : 1;
           tunnelStarMat.opacity = 0.9 * fadeOut;
           tunnelHeartMat.opacity = 0.9 * fadeOut;
           tunnelRings.forEach(r => { r.material.opacity = 0.35 * fadeOut; });
 
-          // Плавно разгръщане на галактиката в края на тунела (от 55% до 100%)
           if (rawT > 0.55) {
             const gProgress = Math.min(1, (rawT - 0.55) / 0.45);
             const gScale = 1 - Math.pow(1 - gProgress, 3);
             worldContainer.scale.set(gScale, gScale, gScale);
           }
 
-          // Край на полета — включване на интерактивния режим
           if (rawT >= 1) {
             flightState = 'galaxy';
             camera.position.copy(END_CAM_POS);
@@ -847,7 +1127,6 @@
           }
         }
 
-        // Анимация на сърцето, снимката и планетата
         const target = showPhotoMode ? 1 : 0;
         transitionProgress += (target - transitionProgress) * 0.08;
 
@@ -868,6 +1147,10 @@
         galaxyDust.rotation.y = elapsed * 0.04;
         heartPlanet.rotation.y = -elapsed * 0.05;
         heartPlanet.rotation.x = Math.sin(elapsed * 0.15) * 0.15;
+
+        updateFireworks();
+        updateMeteors(elapsed);
+        updateAndDrawTrail();
 
         if (flightState === 'galaxy') {
           controls.update();
