@@ -31,7 +31,7 @@
       align-items: center;
       justify-content: center;
       z-index: 9999;
-      transition: opacity 0.8s ease, visibility 0.8s ease;
+      transition: opacity 0.7s ease, visibility 0.7s ease;
     }
     #intro-screen.hidden {
       opacity: 0;
@@ -141,29 +141,35 @@
   </div>
   <audio id="bg-music" src="music.mp3" loop preload="auto"></audio>
 
-  <!-- Директно зареждане на Three.js -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 
   <script>
-    // 1. Бутонът и музиката се инициализират ВЕДНАГА и независимо от 3D
-    (function() {
+    window.addEventListener('DOMContentLoaded', function() {
       const introScreen = document.getElementById('intro-screen');
       const startBtn = document.getElementById('start-btn');
       const uiContainer = document.getElementById('ui');
+      const hintEl = document.getElementById('hint');
       const audio = document.getElementById('bg-music');
       const musicBtn = document.getElementById('music-btn');
       let isPlaying = false;
       let hasMusicFile = true;
+
+      // Състояния на полета: 'idle' -> 'tunnel' -> 'galaxy'
+      let flightState = 'idle';
+      let flightStartTime = 0;
+      const FLIGHT_DURATION = 4.2; // Продължителност на полета през тунела в секунди
 
       audio.addEventListener('error', () => {
         hasMusicFile = false;
         musicBtn.style.display = 'none';
       });
 
-      function openSurprise() {
+      function startExperience() {
+        if (flightState !== 'idle') return;
         introScreen.classList.add('hidden');
-        uiContainer.style.opacity = '1';
+        flightState = 'tunnel';
+        flightStartTime = performance.now() * 0.001;
 
         if (hasMusicFile) {
           musicBtn.style.display = 'flex';
@@ -174,10 +180,10 @@
         }
       }
 
-      startBtn.addEventListener('click', openSurprise);
+      startBtn.addEventListener('click', startExperience);
       startBtn.addEventListener('touchend', function(e) {
         e.preventDefault();
-        openSurprise();
+        startExperience();
       }, { passive: false });
 
       musicBtn.addEventListener('click', (e) => {
@@ -195,17 +201,10 @@
           }).catch(() => {});
         }
       });
-    })();
 
-    // 2. Инициализация на 3D галактиката, планетата от сърца и снимката
-    window.addEventListener('DOMContentLoaded', function() {
-      if (typeof THREE === 'undefined') {
-        console.error('Three.js не е зареден');
-        return;
-      }
+      if (typeof THREE === 'undefined') return;
 
       const PHOTO_URL = "photo.jpg";
-      const hintEl = document.getElementById('hint');
 
       const phrases = [
         "Обичам те", "Обичам те, Мими", "Много те обичам", "Обичам те безкрайно", "Ти си моето всичко",
@@ -231,10 +230,14 @@
       ];
 
       const scene = new THREE.Scene();
-      scene.fog = new THREE.FogExp2(0x030108, 0.0045);
+      scene.fog = new THREE.FogExp2(0x030108, 0.0042);
 
-      const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-      camera.position.set(0, 16, 48);
+      const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1200);
+      // Начална позиция на камерата далеч в тунела
+      const START_CAM_POS = new THREE.Vector3(0, 6, 360);
+      const END_CAM_POS = new THREE.Vector3(0, 16, 48);
+      camera.position.copy(START_CAM_POS);
+      camera.lookAt(0, 0, 0);
 
       const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
       renderer.setSize(window.innerWidth, window.innerHeight);
@@ -248,9 +251,141 @@
       controls.maxDistance = 110;
       controls.autoRotate = true;
       controls.autoRotateSpeed = 0.65;
+      controls.enabled = false; // Активира се след пристигането в галактиката
+
+      // Текстура на сърчице за тунела и планетата
+      function createHeartTexture() {
+        const c = document.createElement('canvas');
+        c.width = 64;
+        c.height = 64;
+        const ctx = c.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.shadowColor = '#ff4da6';
+        ctx.shadowBlur = 12;
+        ctx.beginPath();
+        ctx.moveTo(32, 52);
+        ctx.bezierCurveTo(32, 49, 10, 35, 10, 21);
+        ctx.bezierCurveTo(10, 12, 18, 8, 25, 12);
+        ctx.bezierCurveTo(29, 14, 32, 18, 32, 20);
+        ctx.bezierCurveTo(32, 18, 35, 14, 39, 12);
+        ctx.bezierCurveTo(46, 8, 54, 12, 54, 21);
+        ctx.bezierCurveTo(54, 35, 32, 49, 32, 52);
+        ctx.fill();
+        return new THREE.CanvasTexture(c);
+      }
+      const heartTex = createHeartTexture();
+
+      // =========================================================
+      // КОСМИЧЕСКИ ТУНЕЛ ОТ ЗВЕЗДИ И СЪРЧИЦА
+      // =========================================================
+      const tunnelGroup = new THREE.Group();
+      scene.add(tunnelGroup);
+
+      // 1) Звездни стени на тунела
+      const tunnelStarCount = 3200;
+      const tunnelStarGeo = new THREE.BufferGeometry();
+      const tunnelStarPos = new Float32Array(tunnelStarCount * 3);
+      const tunnelStarCol = new Float32Array(tunnelStarCount * 3);
+
+      const tCol1 = new THREE.Color(0xff2a85);
+      const tCol2 = new THREE.Color(0xb566ff);
+      const tCol3 = new THREE.Color(0xffffff);
+
+      for (let i = 0; i < tunnelStarCount; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const radius = 6.5 + Math.pow(Math.random(), 0.7) * 26;
+        const z = 45 + Math.random() * 340; // Разположени по целия път от Z=45 до Z=385
+
+        tunnelStarPos[i * 3] = Math.cos(angle) * radius;
+        tunnelStarPos[i * 3 + 1] = Math.sin(angle) * radius + 4;
+        tunnelStarPos[i * 3 + 2] = z;
+
+        const rnd = Math.random();
+        const c = rnd < 0.45 ? tCol1 : (rnd < 0.75 ? tCol2 : tCol3);
+        tunnelStarCol[i * 3] = c.r;
+        tunnelStarCol[i * 3 + 1] = c.g;
+        tunnelStarCol[i * 3 + 2] = c.b;
+      }
+
+      tunnelStarGeo.setAttribute('position', new THREE.BufferAttribute(tunnelStarPos, 3));
+      tunnelStarGeo.setAttribute('color', new THREE.BufferAttribute(tunnelStarCol, 3));
+
+      const tunnelStarMat = new THREE.PointsMaterial({
+        size: 0.65,
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.9,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+      });
+
+      const tunnelStars = new THREE.Points(tunnelStarGeo, tunnelStarMat);
+      tunnelGroup.add(tunnelStars);
+
+      // 2) Летящи сърчица в тунела
+      const tunnelHeartCount = 450;
+      const tunnelHeartGeo = new THREE.BufferGeometry();
+      const tunnelHeartPos = new Float32Array(tunnelHeartCount * 3);
+      const tunnelHeartCol = new Float32Array(tunnelHeartCount * 3);
+
+      for (let i = 0; i < tunnelHeartCount; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const radius = 5.5 + Math.random() * 18;
+        const z = 50 + Math.random() * 330;
+
+        tunnelHeartPos[i * 3] = Math.cos(angle) * radius;
+        tunnelHeartPos[i * 3 + 1] = Math.sin(angle) * radius + 4;
+        tunnelHeartPos[i * 3 + 2] = z;
+
+        const c = Math.random() < 0.6 ? tCol1 : new THREE.Color(0xff99cc);
+        tunnelHeartCol[i * 3] = c.r;
+        tunnelHeartCol[i * 3 + 1] = c.g;
+        tunnelHeartCol[i * 3 + 2] = c.b;
+      }
+
+      tunnelHeartGeo.setAttribute('position', new THREE.BufferAttribute(tunnelHeartPos, 3));
+      tunnelHeartGeo.setAttribute('color', new THREE.BufferAttribute(tunnelHeartCol, 3));
+
+      const tunnelHeartMat = new THREE.PointsMaterial({
+        size: 1.5,
+        map: heartTex,
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.9,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+      });
+
+      const tunnelHearts = new THREE.Points(tunnelHeartGeo, tunnelHeartMat);
+      tunnelGroup.add(tunnelHearts);
+
+      // 3) Светещи неонови пръстени по дължината на тунела
+      const tunnelRings = [];
+      for (let i = 0; i < 16; i++) {
+        const ringGeo = new THREE.RingGeometry(8.5, 8.85, 64);
+        const ringMat = new THREE.MeshBasicMaterial({
+          color: i % 2 === 0 ? 0xff2a85 : 0x9d4edd,
+          side: THREE.DoubleSide,
+          transparent: true,
+          opacity: 0.35,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false
+        });
+        const ring = new THREE.Mesh(ringGeo, ringMat);
+        ring.position.set(0, 4, 55 + i * 20);
+        tunnelGroup.add(ring);
+        tunnelRings.push(ring);
+      }
+
+      // =========================================================
+      // ГЛАВНА ГАЛАКТИКА В КРАЯ НА ТУНЕЛА
+      // =========================================================
+      const worldContainer = new THREE.Group();
+      worldContainer.scale.set(0.001, 0.001, 0.001); // Скрита до приближаване на камерата
+      scene.add(worldContainer);
 
       const galaxyGroup = new THREE.Group();
-      scene.add(galaxyGroup);
+      worldContainer.add(galaxyGroup);
 
       // 1. 3D сърце в центъра
       const heartParticleCount = 3400;
@@ -416,291 +551,4 @@
           drawFrame(img);
           texture.needsUpdate = true;
         };
-        img.src = url;
-
-        const material = new THREE.SpriteMaterial({
-          map: texture,
-          transparent: true,
-          opacity: 0,
-          depthTest: false,
-          depthWrite: false
-        });
-
-        const sprite = new THREE.Sprite(material);
-        sprite.scale.set(0.01, 0.01, 1);
-        sprite.position.set(0, 1.0, 0);
-        sprite.renderOrder = 15;
-        return sprite;
-      }
-
-      const photoSprite = createPhotoSprite(PHOTO_URL);
-      galaxyGroup.add(photoSprite);
-
-      let showPhotoMode = false;
-      let transitionProgress = 0;
-
-      const raycaster = new THREE.Raycaster();
-      const pointer = new THREE.Vector2();
-      let downPos = { x: 0, y: 0 };
-
-      renderer.domElement.addEventListener('pointerdown', (e) => {
-        downPos = { x: e.clientX, y: e.clientY };
-      });
-
-      renderer.domElement.addEventListener('pointerup', (e) => {
-        const dist = Math.hypot(e.clientX - downPos.x, e.clientY - downPos.y);
-        if (dist > 10) return;
-
-        const rect = renderer.domElement.getBoundingClientRect();
-        pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-        pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-
-        raycaster.setFromCamera(pointer, camera);
-
-        const hitTargets = showPhotoMode ? [photoSprite, nameSprite] : [nameSprite];
-        const intersects = raycaster.intersectObjects(hitTargets);
-
-        const centerWorld = new THREE.Vector3(0, 1.0, 0);
-        galaxyGroup.localToWorld(centerWorld);
-        const distToRay = raycaster.ray.distanceToPoint(centerWorld);
-
-        if (intersects.length > 0 || distToRay < 3.4) {
-          showPhotoMode = !showPhotoMode;
-          hintEl.textContent = showPhotoMode 
-            ? "Натисни снимката, за да върнеш сърцето ❤️" 
-            : "Натисни върху „МИМИ“ в центъра ✨";
-          hintEl.style.opacity = '1';
-        }
-      });
-
-      // 2. Текстови спрайтове
-      function createTextSprite(text) {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        canvas.width = 512;
-        canvas.height = 128;
-
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.font = '600 38px "Segoe UI", Arial, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-
-        ctx.shadowColor = '#ff2a85';
-        ctx.shadowBlur = 16;
-        ctx.fillStyle = '#ffffff';
-        ctx.fillText(text, canvas.width / 2, canvas.height / 2);
-
-        const texture = new THREE.CanvasTexture(canvas);
-        texture.minFilter = THREE.LinearFilter;
-
-        const material = new THREE.SpriteMaterial({
-          map: texture,
-          transparent: true,
-          opacity: 0.92,
-          depthWrite: false
-        });
-
-        const sprite = new THREE.Sprite(material);
-        sprite.scale.set(7.2, 1.8, 1);
-        return sprite;
-      }
-
-      const arms = 4;
-      phrases.forEach((phrase, idx) => {
-        const sprite = createTextSprite(phrase);
-        const arm = idx % arms;
-        const progress = idx / phrases.length;
-        const radius = 8.5 + progress * 22;
-        const angle = (arm * (Math.PI * 2 / arms)) + progress * Math.PI * 3.8;
-        const yOffset = (Math.sin(idx * 1.7) * 3.5) * (0.4 + progress * 0.6);
-
-        sprite.position.set(
-          Math.cos(angle) * radius,
-          yOffset,
-          Math.sin(angle) * radius
-        );
-
-        galaxyGroup.add(sprite);
-      });
-
-      // 3. Звезден прах
-      const dustCount = 3800;
-      const dustGeo = new THREE.BufferGeometry();
-      const dustPos = new Float32Array(dustCount * 3);
-      const dustCol = new Float32Array(dustCount * 3);
-
-      const colPink = new THREE.Color(0xff4da6);
-      const colPurple = new THREE.Color(0x9d4edd);
-      const colWhite = new THREE.Color(0xffffff);
-
-      for (let i = 0; i < dustCount; i++) {
-        const arm = i % arms;
-        const r = 5 + Math.pow(Math.random(), 1.3) * 31;
-        const spinAngle = r * 0.22;
-        const branchAngle = (arm / arms) * Math.PI * 2;
-
-        const randomX = Math.pow(Math.random(), 3) * (Math.random() < 0.5 ? 1 : -1) * 2.5;
-        const randomY = Math.pow(Math.random(), 3) * (Math.random() < 0.5 ? 1 : -1) * 2.0;
-        const randomZ = Math.pow(Math.random(), 3) * (Math.random() < 0.5 ? 1 : -1) * 2.5;
-
-        dustPos[i * 3] = Math.cos(branchAngle + spinAngle) * r + randomX;
-        dustPos[i * 3 + 1] = randomY;
-        dustPos[i * 3 + 2] = Math.sin(branchAngle + spinAngle) * r + randomZ;
-
-        const pick = Math.random();
-        const c = pick < 0.45 ? colPink : (pick < 0.8 ? colPurple : colWhite);
-        dustCol[i * 3] = c.r;
-        dustCol[i * 3 + 1] = c.g;
-        dustCol[i * 3 + 2] = c.b;
-      }
-
-      dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPos, 3));
-      dustGeo.setAttribute('color', new THREE.BufferAttribute(dustCol, 3));
-
-      const dustMat = new THREE.PointsMaterial({
-        size: 0.16,
-        vertexColors: true,
-        transparent: true,
-        opacity: 0.72,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false
-      });
-
-      const galaxyDust = new THREE.Points(dustGeo, dustMat);
-      galaxyGroup.add(galaxyDust);
-
-      // 4. Кръгла планета от сърца около цялата галактика
-      function createPlanetHeartTexture() {
-        const c = document.createElement('canvas');
-        c.width = 64;
-        c.height = 64;
-        const ctx = c.getContext('2d');
-        ctx.fillStyle = '#ffffff';
-        ctx.shadowColor = '#ff4da6';
-        ctx.shadowBlur = 12;
-        ctx.beginPath();
-        ctx.moveTo(32, 52);
-        ctx.bezierCurveTo(32, 49, 10, 35, 10, 21);
-        ctx.bezierCurveTo(10, 12, 18, 8, 25, 12);
-        ctx.bezierCurveTo(29, 14, 32, 18, 32, 20);
-        ctx.bezierCurveTo(32, 18, 35, 14, 39, 12);
-        ctx.bezierCurveTo(46, 8, 54, 12, 54, 21);
-        ctx.bezierCurveTo(54, 35, 32, 49, 32, 52);
-        ctx.fill();
-        return new THREE.CanvasTexture(c);
-      }
-
-      const planetHeartCount = 950;
-      const planetRadius = 42;
-      const planetGeo = new THREE.BufferGeometry();
-      const planetPos = new Float32Array(planetHeartCount * 3);
-      const planetCol = new Float32Array(planetHeartCount * 3);
-
-      const pCol1 = new THREE.Color(0xff2a85);
-      const pCol2 = new THREE.Color(0xff85c2);
-      const pCol3 = new THREE.Color(0xd966ff);
-
-      const goldenRatio = (1 + Math.sqrt(5)) / 2;
-      for (let i = 0; i < planetHeartCount; i++) {
-        const theta = (2 * Math.PI * i) / goldenRatio;
-        const phi = Math.acos(1 - (2 * (i + 0.5)) / planetHeartCount);
-        const rJitter = planetRadius + (Math.random() - 0.5) * 1.4;
-
-        planetPos[i * 3] = rJitter * Math.sin(phi) * Math.cos(theta);
-        planetPos[i * 3 + 1] = rJitter * Math.cos(phi);
-        planetPos[i * 3 + 2] = rJitter * Math.sin(phi) * Math.sin(theta);
-
-        const rnd = Math.random();
-        const col = rnd < 0.45 ? pCol1 : (rnd < 0.8 ? pCol2 : pCol3);
-        planetCol[i * 3] = col.r;
-        planetCol[i * 3 + 1] = col.g;
-        planetCol[i * 3 + 2] = col.b;
-      }
-
-      planetGeo.setAttribute('position', new THREE.BufferAttribute(planetPos, 3));
-      planetGeo.setAttribute('color', new THREE.BufferAttribute(planetCol, 3));
-
-      const planetMat = new THREE.PointsMaterial({
-        size: 1.35,
-        map: createPlanetHeartTexture(),
-        vertexColors: true,
-        transparent: true,
-        opacity: 0.82,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false
-      });
-
-      const heartPlanet = new THREE.Points(planetGeo, planetMat);
-      scene.add(heartPlanet);
-
-      // 5. Дълбок звезден фон
-      const bgStarsCount = 2000;
-      const bgStarsGeo = new THREE.BufferGeometry();
-      const bgStarsPos = new Float32Array(bgStarsCount * 3);
-
-      for (let i = 0; i < bgStarsCount; i++) {
-        const u = Math.random();
-        const v = Math.random();
-        const theta = u * 2.0 * Math.PI;
-        const phi = Math.acos(2.0 * v - 1.0);
-        const rad = 85 + Math.random() * 140;
-
-        bgStarsPos[i * 3] = rad * Math.sin(phi) * Math.cos(theta);
-        bgStarsPos[i * 3 + 1] = rad * Math.sin(phi) * Math.sin(theta);
-        bgStarsPos[i * 3 + 2] = rad * Math.cos(phi);
-      }
-
-      bgStarsGeo.setAttribute('position', new THREE.BufferAttribute(bgStarsPos, 3));
-      const bgStarsMat = new THREE.PointsMaterial({
-        color: 0xffe6f2,
-        size: 0.35,
-        transparent: true,
-        opacity: 0.65
-      });
-      scene.add(new THREE.Points(bgStarsGeo, bgStarsMat));
-
-      galaxyGroup.rotation.z = 0.16;
-      galaxyGroup.rotation.x = 0.10;
-
-      window.addEventListener('resize', () => {
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
-      });
-
-      const clock = new THREE.Clock();
-
-      function animate() {
-        requestAnimationFrame(animate);
-        const elapsed = clock.getElapsedTime();
-
-        const target = showPhotoMode ? 1 : 0;
-        transitionProgress += (target - transitionProgress) * 0.08;
-
-        const heartScaleFactor = Math.max(0.001, 1 - transitionProgress);
-        const beat = 1 + Math.pow(Math.sin(elapsed * 3.2), 6) * 0.14;
-
-        heartMesh.scale.set(beat * heartScaleFactor, beat * heartScaleFactor, beat * heartScaleFactor);
-        heartMesh.rotation.y = Math.sin(elapsed * 0.8) * 0.25;
-        heartMat.opacity = 0.88 * heartScaleFactor;
-
-        nameSprite.scale.set(5.4 * beat * heartScaleFactor, 2.7 * beat * heartScaleFactor, 1);
-        nameSprite.material.opacity = heartScaleFactor;
-
-        const photoScale = 8.4 * transitionProgress;
-        photoSprite.scale.set(Math.max(0.001, photoScale), Math.max(0.001, photoScale), 1);
-        photoSprite.material.opacity = transitionProgress;
-
-        galaxyDust.rotation.y = elapsed * 0.04;
-        heartPlanet.rotation.y = -elapsed * 0.05;
-        heartPlanet.rotation.x = Math.sin(elapsed * 0.15) * 0.15;
-
-        controls.update();
-        renderer.render(scene, camera);
-      }
-
-      animate();
-    });
-  </script>
-</body>
-</html>
+    
