@@ -577,4 +577,128 @@
           transparent: true,
           opacity: 0.92,
           depthWrite: false
-      
+        });
+
+        const sprite = new THREE.Sprite(material);
+        sprite.scale.set(7.2, 1.8, 1);
+        return sprite;
+      }
+
+      const arms = 4;
+      phrases.forEach((phrase, idx) => {
+        const sprite = createTextSprite(phrase);
+        const arm = idx % arms;
+        const progress = idx / phrases.length;
+        const radius = 8.5 + progress * 22;
+        const angle = (arm * (Math.PI * 2 / arms)) + progress * Math.PI * 3.8;
+        const yOffset = (Math.sin(idx * 1.7) * 3.5) * (0.4 + progress * 0.6);
+
+        sprite.position.set(
+          Math.cos(angle) * radius,
+          yOffset,
+          Math.sin(angle) * radius
+        );
+
+        galaxyGroup.add(sprite);
+      });
+
+      // 3. Звезден прах на галактиката
+      const dustCount = 3800;
+      const dustGeo = new THREE.BufferGeometry();
+      const dustPos = new Float32Array(dustCount * 3);
+      const dustCol = new Float32Array(dustCount * 3);
+
+      const colPink = new THREE.Color(0xff4da6);
+      const colPurple = new THREE.Color(0x9d4edd);
+      const colWhite = new THREE.Color(0xffffff);
+
+      for (let i = 0; i < dustCount; i++) {
+        const arm = i % arms;
+        const r = 5 + Math.pow(Math.random(), 1.3) * 31;
+        const spinAngle = r * 0.22;
+        const branchAngle = (arm / arms) * Math.PI * 2;
+
+        const randomX = Math.pow(Math.random(), 3) * (Math.random() < 0.5 ? 1 : -1) * 2.5;
+        const randomY = Math.pow(Math.random(), 3) * (Math.random() < 0.5 ? 1 : -1) * 2.0;
+        const randomZ = Math.pow(Math.random(), 3) * (Math.random() < 0.5 ? 1 : -1) * 2.5;
+
+        dustPos[i * 3] = Math.cos(branchAngle + spinAngle) * r + randomX;
+        dustPos[i * 3 + 1] = randomY;
+        dustPos[i * 3 + 2] = Math.sin(branchAngle + spinAngle) * r + randomZ;
+
+        const pick = Math.random();
+        const c = pick < 0.45 ? colPink : (pick < 0.8 ? colPurple : colWhite);
+        dustCol[i * 3] = c.r;
+        dustCol[i * 3 + 1] = c.g;
+        dustCol[i * 3 + 2] = c.b;
+      }
+
+      dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPos, 3));
+      dustGeo.setAttribute('color', new THREE.BufferAttribute(dustCol, 3));
+
+      const dustMat = new THREE.PointsMaterial({
+        size: 0.16,
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.78,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+      });
+
+      const dustMesh = new THREE.Points(dustGeo, dustMat);
+      galaxyGroup.add(dustMesh);
+
+      // 4. Фонови звезди
+      const bgStarCount = 1400;
+      const bgGeo = new THREE.BufferGeometry();
+      const bgPos = new Float32Array(bgStarCount * 3);
+      for (let i = 0; i < bgStarCount; i++) {
+        bgPos[i * 3] = (Math.random() - 0.5) * 240;
+        bgPos[i * 3 + 1] = (Math.random() - 0.5) * 240;
+        bgPos[i * 3 + 2] = (Math.random() - 0.5) * 240;
+      }
+      bgGeo.setAttribute('position', new THREE.BufferAttribute(bgPos, 3));
+      const bgMat = new THREE.PointsMaterial({ size: 0.25, color: 0xffffff, transparent: true, opacity: 0.65 });
+      const bgStars = new THREE.Points(bgGeo, bgMat);
+      scene.add(bgStars);
+
+      window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+
+      const clock = new THREE.Clock();
+      function animate() {
+        requestAnimationFrame(animate);
+        const elapsed = clock.getElapsedTime();
+
+        // Плавна анимация на прехода Сърце <-> Снимка
+        const target = showPhotoMode ? 1 : 0;
+        transitionProgress += (target - transitionProgress) * 0.08;
+
+        // Пулсация на 3D сърцето
+        const beat = 1 + Math.sin(elapsed * 3.5) * 0.055;
+        const heartScale = beat * (1 - transitionProgress * 0.75);
+        heartMesh.scale.set(heartScale, heartScale, heartScale);
+        heartMat.opacity = 0.88 * (1 - transitionProgress * 0.85);
+
+        // Надпис МИМИ
+        const nameScale = (1 - transitionProgress);
+        nameSprite.scale.set(5.4 * nameScale, 2.7 * nameScale, 1);
+        nameSprite.material.opacity = 1 - transitionProgress;
+
+        // Снимка
+        const pScale = 7.4 * transitionProgress;
+        photoSprite.scale.set(Math.max(0.01, pScale), Math.max(0.01, pScale), 1);
+        photoSprite.material.opacity = transitionProgress;
+
+        controls.update();
+        renderer.render(scene, camera);
+      }
+
+      animate();
+    })();
+  </script>
+</body>
+</html>
