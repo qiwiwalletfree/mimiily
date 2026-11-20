@@ -276,19 +276,19 @@
       ];
 
       const scene = new THREE.Scene();
-      scene.fog = new THREE.FogExp2(0x030108, 0.0045);
+      scene.fog = new THREE.FogExp2(0x030108, 0.0042);
 
       const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-      camera.position.set(0, 16, 130);
+      camera.position.set(0, 38, 165);
 
       const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
       renderer.setSize(window.innerWidth, window.innerHeight);
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
       document.body.appendChild(renderer.domElement);
 
-      const controls = new THREE.OrbitControls(camera, renderer.domElement);
+      const controls = new OrbitControls(camera, renderer.domElement);
       controls.enableDamping = true; controls.dampingFactor = 0.05;
-      controls.minDistance = 8; controls.maxDistance = 110;
+      controls.minDistance = 8; controls.maxDistance = 120;
       controls.autoRotate = true; controls.autoRotateSpeed = 0.65;
 
       function createHeartPointTexture() {
@@ -307,17 +307,18 @@
       }
       const heartTex = createHeartPointTexture();
 
+      // По-дълъг тунел от сърца (42 пръстена)
       const tunnelGroup = new THREE.Group();
       scene.add(tunnelGroup);
       const tunnelRings = [];
-      const ringCount = 26;
+      const ringCount = 42;
 
       for (let r = 0; r < ringCount; r++) {
-        const ptsCount = 48;
+        const ptsCount = 52;
         const geo = new THREE.BufferGeometry();
         const pos = new Float32Array(ptsCount * 3);
         const col = new Float32Array(ptsCount * 3);
-        const ringRadius = 6.5 + (r % 3) * 0.7;
+        const ringRadius = 6.2 + (r % 3) * 0.75;
         for (let i = 0; i < ptsCount; i++) {
           const t = (i / ptsCount) * Math.PI * 2;
           const hx = 16 * Math.pow(Math.sin(t), 3);
@@ -332,11 +333,12 @@
         geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
         const mat = new THREE.PointsMaterial({
           size: 0.95, map: heartTex, vertexColors: true, transparent: true,
-          opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false
+          opacity: 0.92, blending: THREE.AdditiveBlending, depthWrite: false
         });
         const ring = new THREE.Points(geo, mat);
-        ring.position.set(0, 14, 48 + r * 3.4);
-        ring.rotation.x = -0.22;
+        const frac = r / ringCount;
+        ring.position.set(0, 15 + frac * 22, 46 + frac * 118);
+        ring.rotation.x = -0.19;
         tunnelGroup.add(ring);
         tunnelRings.push(ring);
       }
@@ -344,6 +346,7 @@
       const galaxyGroup = new THREE.Group();
       scene.add(galaxyGroup);
 
+      // Централно 3D сърце
       const heartParticleCount = 3400;
       const heartGeo = new THREE.BufferGeometry();
       const heartPositions = new Float32Array(heartParticleCount * 3);
@@ -373,6 +376,7 @@
       const heartMesh = new THREE.Points(heartGeo, heartMat);
       galaxyGroup.add(heartMesh);
 
+      // Вътрешна орбитална планета около центъра
       const planetOrbitGroup = new THREE.Group();
       planetOrbitGroup.position.set(0, 1.0, 0);
       planetOrbitGroup.rotation.z = 0.28; planetOrbitGroup.rotation.x = 0.18;
@@ -421,8 +425,63 @@
         size: 0.36, map: heartTex, vertexColors: true, transparent: true,
         opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false
       });
-      const orbitRing = new THREE.Points(ringGeo, ringMat);
-      planetOrbitGroup.add(orbitRing);
+      planetOrbitGroup.add(new THREE.Points(ringGeo, ringMat));
+
+      // ВЪНШНА ГОЛЯМА ПЛАНЕТА ОТ СЪРЦА (върти се около цялата галактика)
+      const outerPlanetOrbit = new THREE.Group();
+      outerPlanetOrbit.rotation.z = -0.18;
+      outerPlanetOrbit.rotation.x = 0.12;
+      galaxyGroup.add(outerPlanetOrbit);
+
+      const outerPlanetGroup = new THREE.Group();
+      outerPlanetGroup.position.set(35.5, 0, 0);
+      outerPlanetGroup.rotation.z = 0.35;
+      outerPlanetOrbit.add(outerPlanetGroup);
+
+      const outerSphereCount = 720;
+      const outerSphereGeo = new THREE.BufferGeometry();
+      const outerSpherePos = new Float32Array(outerSphereCount * 3);
+      const outerSphereCol = new Float32Array(outerSphereCount * 3);
+      const outerRadius = 2.6;
+      for (let i = 0; i < outerSphereCount; i++) {
+        const phi = Math.acos(-1 + (2 * i) / outerSphereCount);
+        const theta = Math.sqrt(outerSphereCount * Math.PI) * phi;
+        outerSpherePos[i * 3] = outerRadius * Math.cos(theta) * Math.sin(phi);
+        outerSpherePos[i * 3 + 1] = outerRadius * Math.sin(theta) * Math.sin(phi);
+        outerSpherePos[i * 3 + 2] = outerRadius * Math.cos(phi);
+        const c = new THREE.Color().setHSL(0.88 + Math.random() * 0.09, 0.95, 0.7);
+        outerSphereCol[i * 3] = c.r; outerSphereCol[i * 3 + 1] = c.g; outerSphereCol[i * 3 + 2] = c.b;
+      }
+      outerSphereGeo.setAttribute('position', new THREE.BufferAttribute(outerSpherePos, 3));
+      outerSphereGeo.setAttribute('color', new THREE.BufferAttribute(outerSphereCol, 3));
+      const outerSphereMat = new THREE.PointsMaterial({
+        size: 0.42, map: heartTex, vertexColors: true, transparent: true,
+        opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false
+      });
+      const outerHeartPlanet = new THREE.Points(outerSphereGeo, outerSphereMat);
+      outerPlanetGroup.add(outerHeartPlanet);
+
+      // Пръстен от сърчица около външната планета
+      const outerRingCount = 140;
+      const outerRingGeo = new THREE.BufferGeometry();
+      const outerRingPos = new Float32Array(outerRingCount * 3);
+      const outerRingCol = new Float32Array(outerRingCount * 3);
+      for (let i = 0; i < outerRingCount; i++) {
+        const a = (i / outerRingCount) * Math.PI * 2;
+        const rad = 3.9 + (Math.random() - 0.5) * 0.6;
+        outerRingPos[i * 3] = Math.cos(a) * rad;
+        outerRingPos[i * 3 + 1] = (Math.random() - 0.5) * 0.15;
+        outerRingPos[i * 3 + 2] = Math.sin(a) * rad;
+        const c = new THREE.Color().setHSL(0.95, 0.9, 0.8);
+        outerRingCol[i * 3] = c.r; outerRingCol[i * 3 + 1] = c.g; outerRingCol[i * 3 + 2] = c.b;
+      }
+      outerRingGeo.setAttribute('position', new THREE.BufferAttribute(outerRingPos, 3));
+      outerRingGeo.setAttribute('color', new THREE.BufferAttribute(outerRingCol, 3));
+      const outerRingMat = new THREE.PointsMaterial({
+        size: 0.34, map: heartTex, vertexColors: true, transparent: true,
+        opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false
+      });
+      outerPlanetGroup.add(new THREE.Points(outerRingGeo, outerRingMat));
 
       function createCenterNameSprite(name) {
         const canvas = document.createElement('canvas'); canvas.width = 512; canvas.height = 256;
@@ -589,15 +648,17 @@
         requestAnimationFrame(animate);
         const elapsed = clock.getElapsedTime();
 
+        // По-дълъг полет през тунела (4.0 секунди вместо 2.4)
         if (tunnelActive && !tunnelFinished) {
           const dt = (performance.now() - tunnelStartTime) / 1000;
-          const p = Math.min(1, dt / 2.4);
-          const ease = 1 - Math.pow(1 - p, 3);
-          camera.position.set(0, 32 - 16 * ease, 130 - 82 * ease);
+          const duration = 4.0;
+          const p = Math.min(1, dt / duration);
+          const ease = 1 - Math.pow(1 - p, 2.6);
+          camera.position.set(0, 38 - 22 * ease, 165 - 117 * ease);
           camera.lookAt(0, 0, 0);
           tunnelRings.forEach((ring, idx) => {
-            ring.rotation.z = elapsed * (idx % 2 === 0 ? 0.6 : -0.6);
-            ring.material.opacity = 0.95 * (1 - Math.pow(p, 2.2));
+            ring.rotation.z = elapsed * (idx % 2 === 0 ? 0.65 : -0.65);
+            ring.material.opacity = 0.95 * (1 - Math.pow(p, 2.5));
           });
           if (p >= 1) {
             tunnelFinished = true;
@@ -610,8 +671,12 @@
           }
         }
 
+        // Въртене на вътрешната и външната планета от сърца
         planetOrbitGroup.rotation.y = elapsed * 0.75;
         heartPlanet.rotation.y = -elapsed * 1.4;
+
+        outerPlanetOrbit.rotation.y = -elapsed * 0.28;
+        outerHeartPlanet.rotation.y = elapsed * 0.9;
 
         const target = showPhotoMode ? 1 : 0;
         transitionProgress += (target - transitionProgress) * 0.08;
