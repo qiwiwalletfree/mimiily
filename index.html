@@ -286,7 +286,8 @@
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
       document.body.appendChild(renderer.domElement);
 
-      const controls = new OrbitControls(camera, renderer.domElement);
+      const ControlsClass = (typeof OrbitControls !== 'undefined') ? OrbitControls : THREE.OrbitControls;
+const controls = ControlsClass ? new ControlsClass(camera, renderer.domElement) : { update: function() {} };
       controls.enableDamping = true; controls.dampingFactor = 0.05;
       controls.minDistance = 8; controls.maxDistance = 120;
       controls.autoRotate = true; controls.autoRotateSpeed = 0.65;
